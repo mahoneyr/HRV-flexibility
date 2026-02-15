@@ -26,10 +26,9 @@ While Alpha-1 measures *order*, RMSSD (Root Mean Square of Successive Difference
 ## **🚀 Key Features**
 
 * **Integration & Dynamics Framework:** A 12-state logic model that classifies physiological states based on baseline organization and the system's "shift capacity."  
-* **FFT-Based Respiratory Detection:** Automatically estimates your breathing frequency (EDR) using Fast Fourier Transform logic to identify "Speed Limit" violations (breathing \> 5.7 bpm).  
 * **Historical Benchmarking:** Calculates your personal historical mean and standard deviation (±1 SD), providing context for today's session within your unique "Normal Range."  
 * **Intelligent Data Handling:** \* **Auto-Splitter:** Automatically detects transitions (\> 10s pause) to separate baseline and entrained segments from a single file.  
-  * **MAD Artifact Filter:** Uses Median Absolute Deviation to remove ectopic beats while preserving the large physiological swings of resonant breathing.  
+* **MAD Artifact Filter:** Uses Median Absolute Deviation to remove ectopic beats while preserving the large physiological swings of resonant breathing.  
 * **State-Driven Insights:** Managed via states.json, providing clinical implications and actionable goals.
 
 ## **📱 How to Use the Web Application**
@@ -42,7 +41,7 @@ Once the container is running, navigate to http://localhost:5000. You will see t
 
 The analyzer supports two workflow modes:
 
-* **Dual File Mode:** Select your 5-minute Baseline CSV in the first slot and your 5-minute Entrained (Breathing) CSV in the second slot.  
+* **Dual File Mode:** Select your Baseline CSV in the first slot and your Entrained (Breathing) CSV in the second slot.  
 * **Single File Mode (Auto-Split):** If you recorded both sessions in one continuous file with a short break (10–30s) in between, simply upload the **same file** to both the Baseline and Entrained inputs. The app will detect the gap and split the data for you.
 
 ### **3\. Reviewing the Results**
@@ -60,18 +59,17 @@ To analyze your autonomic flexibility, you need raw RR interval data exported in
 ### **Recommended Apps**
 
 * **Camera Heart Rate Variability (Highly Recommended):** Available at [hrv.tools](https://www.hrv.tools/). This app allows for high-quality RR interval capture using your phone's camera and provides easy CSV export.  
-* **HRV Logger:** Use with a chest strap. Ensure "Write to Apple Health" is **OFF** to keep experimental data separate from your fitness history.  
+* **HRV Logger:** Use with a chest strap.
 * **Elite HRV:** Use "Open Reading" mode and export the raw RR intervals.
 
 ### **Recommended Hardware**
 
-* **Polar H10 Chest Strap:** The gold standard for mobile RR interval accuracy.
+* **Polar H10 Chest Strap:** The gold standard for mobile RR interval accuracy. Not needed for Camera HRV.
 
 ### **Testing Protocol**
 
-1. **Baseline**: Sit quietly for 5 minutes.  
-2. **Break**: Stand up or move for 30–60 seconds (creates the required time gap for the auto-splitter).  
-3. **Entrained**: Perform resonant breathing (e.g., 5.5 to 6 breaths per minute) for 5 minutes.
+1. **Baseline**: Sit quietly and breathe shallowly but regularly. One minute is a minimum but longer sessions give better results.    
+3. **Entrained**: Perform resonant deep breathing (e.g., 6 breaths per minute) for at least one minute. Breathe deeply and regularly. Again, the longer the better.
 
 ## **📊 The 12-State Interpretation Model**
 
