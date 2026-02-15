@@ -1,0 +1,93 @@
+{
+  "laser_focus": {
+    "state": "Laser Focus",
+    "physiology": "Current Snapshot: Your high-structure baseline ({b_alpha}) successfully recruited massive vagal power ({vagal_gain}x gain) during the session.",
+    "implication": "You are likely feeling sharp, energized, and capable. Your mind and body are working in perfect sync right now.",
+    "goal": "Performance Window. You are primed for high cognitive or physical load. Capitalize on this state.",
+    "color": "state-green"
+  },
+  "attentive": {
+    "state": "Attentive",
+    "physiology": "Current Snapshot: A highly organized baseline ({b_alpha}) was maintained ({e_alpha}), but the system resisted recruiting additional vagal tone ({vagal_gain}x gain).",
+    "implication": "You are focused and alert, but holding onto physical tension. You might feel 'wired' rather than relaxed.",
+    "goal": "Soften Tension. This state is often associated with intense focus. To shift into recovery, consciously drop your shoulders and relax the jaw.",
+    "color": "state-gray"
+  },
+  "stuck": {
+    "state": "Stuck",
+    "physiology": "Current Snapshot: A rigid baseline ({b_alpha}) showed high resistance to the breathing stimulus, resulting in a flat Coherence Ratio ({coherence_ratio}x).",
+    "implication": "You may be trying too hard. The harder you concentrate on the breath, the more your system is tightening up.",
+    "goal": "Reset Pattern. No force required. Physical movement (stretching, shaking hands) may help break the static state before trying again.",
+    "color": "state-burnt"
+  },
+  "relying_on_reserves": {
+    "state": "Relying on Reserves",
+    "physiology": "Current Snapshot: A scattered baseline ({b_alpha}) was successfully forced into alignment by the breath, achieving a {coherence_ratio}x improvement.",
+    "implication": "You are performing well, but it might feel harder than usual because you started with low energy.",
+    "goal": "Acute Recovery. You have successfully shifted state, but given the low baseline, prioritize rest/nutrition after this session.",
+    "color": "state-yellow"
+  },
+  "running_low": {
+    "state": "Running Low",
+    "physiology": "Current Snapshot: From a low baseline ({b_alpha}), the body generated Vagal Gain ({vagal_gain}x), but the heart rate pattern remained complex ({e_alpha}).",
+    "implication": "Your body is doing the work, but your mind is likely tired or distracted, making it hard to find a smooth rhythm.",
+    "goal": "Reduce Load. The body is working hard to comply. Consider a shorter session or a more comfortable breathing rate to reduce strain.",
+    "color": "state-dark-orange"
+  },
+  "running_on_fumes": {
+    "state": "Running on Fumes",
+    "physiology": "Current Snapshot: A depleted baseline ({b_alpha}) showed no significant response to the breathing protocol in either structure or energy.",
+    "implication": "Your internal battery is low. Even with effort, your system isn't able to bounce back effectively right now.",
+    "goal": "Restorative Protocol. Training is likely counter-productive right now. Prioritize hydration, sleep, and passive recovery.",
+    "color": "state-red"
+  },
+  "feeling_the_flow": {
+    "state": "Feeling the Flow",
+    "physiology": "OPTIMAL. A balanced baseline ({b_alpha}) surged into high coherence ({e_alpha}) and high vagal recruitment ({vagal_gain}x gain).",
+    "implication": "Breathing feels effortless and rewarding. You are in a state of deep recovery and high function.",
+    "goal": "Maintain Protocol. This is the ideal physiological state for neuroplasticity and recovery. Continue as is.",
+    "color": "state-green"
+  },
+  "fragile_calm": {
+    "state": "A Fragile Calm",
+    "physiology": "Current Snapshot: The heart rate followed the breathing timing perfectly ({e_alpha}), but the physiological amplitude ({vagal_gain}x) remained suppressed.",
+    "implication": "You feel calm on the surface, but the breathing isn't quite deep enough to trigger a full physical recharge.",
+    "goal": "Modulate Depth. If comfortable, try a slightly fuller inhalation. Often, a small increase in tidal volume recruits the vagus nerve without changing speed.",
+    "color": "state-soft-green"
+  },
+  "open_for_business": {
+    "state": "Open for Business",
+    "physiology": "Current Snapshot: A stable baseline ({b_alpha}) maintained equilibrium throughout the session without significant deviation.",
+    "implication": "You are steady and balanced. You aren't pushing limits, but you are maintaining a healthy baseline.",
+    "goal": "Ready for Action. You are in a sustainable state. If higher recovery is desired, focus on extending the exhalation phase.",
+    "color": "state-green"
+  },
+  "tug_of_war": {
+    "state": "Tug of War",
+    "physiology": "Current Snapshot: Significant vagal recruitment ({vagal_gain}x gain) occurred, but the heart rate pattern ({e_alpha}) remained complex.",
+    "implication": "Your body is generating good energy, but it feels a bit 'messy' as your system sorts through stress or fatigue.",
+    "goal": "Allow the Turbulence. The body is responding energetically. Try relaxing the abdomen to see if the rhythm smooths out, but do not force it.",
+    "color": "state-amber"
+  },
+  "burned_out": {
+    "state": "Burned Out",
+    "physiology": "Current Snapshot: An organized baseline ({b_alpha}) deteriorated into disorder ({e_alpha}) during the session.",
+    "implication": "Instead of relaxing, the effort of the session caused a stress reaction. You might be pushing when you need to rest.",
+    "goal": "Reduce Pressure. The nervous system perceived the breathing as a stressor. Stop for now and try a gentler approach later.",
+    "color": "state-red"
+  },
+  "surfing_the_wave": {
+    "state": "Surfing the Wave",
+    "physiology": "Current Snapshot: High baseline vagal tone ({b_rmssd}ms) limited the calculation of relative gain, but coherence remained high.",
+    "implication": "You started this session already feeling great, so there wasn't much room (or need) to improve your score.",
+    "goal": "Disregard Score. Your physiology is optimized. The 'Low Gain' is a data limitation, not a physiological failure.",
+    "color": "state-green"
+  },
+  "unknown": {
+    "state": "Unknown",
+    "physiology": "N/A",
+    "implication": "N/A",
+    "goal": "Check sensor connection and try again.",
+    "color": "secondary"
+  }
+}

@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomic Flexibility Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script>
+        // Helper function to handle navigation cleanly
+        function openSession(url) {
+            window.location.href = url;
+        }
+    </script>
+    <style>
+        body { background-color: #f4f6f9; }
+        .card { border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .btn-primary { background-color: #007acc; border: none; }
+        .table-hover tbody tr:hover { background-color: rgba(0, 122, 204, 0.05); cursor: pointer; }
+        
+        /* SCROLLABLE TABLE CSS */
+        .history-scroll-box {
+            max-height: 500px;
+            overflow-y: auto;
+            /* Enable horizontal scroll on small screens */
+            overflow-x: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
+        }
+        .history-scroll-box thead th {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background-color: #f8f9fa;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            white-space: nowrap; /* Prevent headers from wrapping weirdly */
+        }
+        
+        /* Ensure table doesn't collapse too small */
+        .table {
+            min-width: 600px; /* Forces scroll on very small screens */
+        }
+
+        /* --- EXPERT COLOR PALETTE (Text Versions) --- */
+        .text-state-red { color: #dc3545 !important; }
+        .text-state-dark-orange { color: #d65b00 !important; }
+        .text-state-yellow { color: #b08d00 !important; }
+        .text-state-green { color: #198754 !important; }
+        .text-state-soft-green { color: #00a180 !important; }
+        .text-state-amber { color: #d99000 !important; }
+        .text-state-pale { color: #997b00 !important; }
+        .text-state-burnt { color: #c0392b !important; }
+        .text-state-gray { color: #6c757d !important; }
+        .text-state-blue { color: #0d6efd !important; } 
+        .text-purple { color: #6f42c1 !important; }
+
+        /* FORCE COLOR INHERITANCE TO CELLS */
+        .table tbody tr td { color: inherit !important; }
+        
+        /* Delete Button Style */
+        .btn-delete {
+            color: #dc3545;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+            text-decoration: none;
+            font-size: 1.2rem;
+            padding: 0 5px;
+        }
+        .btn-delete:hover {
+            opacity: 1;
+            color: #dc3545;
+        }
+        /* Stop row click when clicking delete */
+        .delete-cell {
+            cursor: default;
+        }
+    </style>
+</head>
+<body class="py-4 py-md-5"> <!-- Smaller padding on mobile -->
+
+<div class="container">
+    <div class="row justify-content-center mb-4 mb-md-5">
+        <!-- RESPONSIVE COLUMN: Full width on mobile (col-12), centered on desktop -->
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card p-4 p-md-5"> <!-- Responsive padding -->
+                <h2 class="text-center mb-4" style="color: #007acc;">Autonomic Flexibility</h2>
+                
+                <div class="d-flex justify-content-center gap-2 mb-4">
+                     <a href="/latest" class="btn btn-outline-secondary">View Last Result</a>
+                </div>
+
+                <p class="text-center text-muted mb-4">Upload your Baseline and Entrained (Deep Breathing) RR Interval CSV files.</p>
+                
+                <form method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">1. Baseline File</label>
+                        <input type="file" name="baseline" class="form-control" accept=".csv" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">2. Entrained File (Deep Breathing)</label>
+                        <input type="file" name="entrained" class="form-control" accept=".csv" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Analyze Autonomic Shift</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- HISTORY TABLE -->
+    {% if history %}
+    <div class="row justify-content-center">
+        <div class="col-12">
+            <h4 class="text-secondary mb-3">Session History</h4>
+            <div class="card p-3 p-md-4">
+                <div class="history-scroll-box table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th class="text-secondary">Base α1</th>
+                                <th class="text-secondary border-end">Base RMSSD</th>
+                                <th style="color: #007acc;">Entr α1</th>
+                                <th style="color: #ff7f0e;" class="border-end">Entr RMSSD</th>
+                                <th>Entr Rate</th>
+                                <th>Coh</th>
+                                <th>Gain</th>
+                                <th style="width: 50px;"></th> <!-- Action Column -->
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in history %}
+                            <!-- Main row click goes to session -->
+                            <!-- Uses single quotes for HTML attr, double quotes for Python, piped to tojson for safe JS string -->
+                            <tr class="text-{{ row.color }}">
+                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Date }}</td>
+                                <td onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Baseline_Alpha }}</td>
+                                <td class="border-end" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Baseline_RMSSD }}</td>
+                                <td onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_Alpha }}</td>
+                                <td class="border-end" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_RMSSD }}</td>
+                                <td class="fw-bold" style="color: #555;" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_Resp_Rate }}</td>
+                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Coherence_Index }}</td>
+                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Vagal_Gain }}</td>
+                                
+                                <!-- Delete Button (Separate cell, no row click) -->
+                                <td class="text-center delete-cell">
+                                    <a href="{{ url_for('delete', date=row.Date) }}" 
+                                       class="btn-delete" 
+                                       onclick="return confirm('Are you sure you want to delete this session?');"
+                                       title="Delete Session">
+                                       🗑️
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+</body>
+</html>
