@@ -259,4 +259,4 @@ Open an issue to discuss!
 
 ---
 
-Built for physiological resilience and autonomic insight.
+*Built for physiological resilience and autonomic insight.*
