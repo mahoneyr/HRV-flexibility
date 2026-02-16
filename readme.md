@@ -237,9 +237,9 @@ GitHub. https://github.com/mahoneyr/HRV-flexibility
 ## 📚 Related Resources
 
 **Scientific Background:**
-- [DFA Alpha-1 in HRV Analysis](https://pubmed.ncbi.nlm.nih.gov/12204388/)
-- [Vagal Tone and HRV](https://pubmed.ncbi.nlm.nih.gov/17967040/)
-- [Respiratory Sinus Arrhythmia](https://pubmed.ncbi.nlm.nih.gov/9179126/)
+- [Heart Rate Variability Analysis](https://pubmed.ncbi.nlm.nih.gov/8737210/) - Task Force guidelines
+- [DFA in Exercise Science](https://pubmed.ncbi.nlm.nih.gov/31498541/) - Gronwald et al., 2019
+- [HRV and Autonomic Function](https://pubmed.ncbi.nlm.nih.gov/17201590/) - Thayer et al., 2007
 
 **Similar Tools:**
 - [HRV4Training](https://www.hrv4training.com/)
