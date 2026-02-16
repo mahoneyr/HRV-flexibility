@@ -208,8 +208,8 @@ This is a **personal research tool** shared for transparency and to help others 
 
 - ✅ Free for personal use
 - ✅ Open for feedback and scientific discussion
-- ⚠️ Not actively maintained for public use
-- ⚠️ Not a medical device
+- ⚠️ Designed only for private use. Not designed for public use
+- ❗ Not a medical device, and not intended to diagnose or treat any medical condition
 
 If you use this in research, please cite this repository.
 
