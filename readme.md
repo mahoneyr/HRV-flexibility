@@ -75,6 +75,90 @@ While Alpha-1 measures *order*, RMSSD (Root Mean Square of Successive Difference
 
 ---
 
+## 📊 The 12-State Interpretation Model
+
+The system uses a **two-dimensional classification framework**:
+- **Integration (Structure):** Measured by DFA Alpha-1 at baseline
+- **Dynamics (Range):** Measured by how much your system shifts during breathing
+
+### **The Three-Tier Framework**
+
+| Tier | Baseline α1 | Interpretation |
+|------|-------------|----------------|
+| **Tier III** | **> 1.25** | **High Structure:** Already organized at rest—either focused or rigid |
+| **Tier II** | **0.75 - 1.25** | **Available:** Balanced baseline with room to adapt |
+| **Tier I** | **< 0.75** | **Low Structure:** Chaotic or depleted at baseline |
+
+---
+
+### **The 12 Physiological States**
+
+Your session gets classified into one of these states based on **how your system responds** to breathing:
+
+#### **🟢 Tier III States: High Baseline Structure (α1 > 1.25)**
+
+| State | Trigger Conditions | What It Means | Next Step |
+|-------|-------------------|---------------|-----------|
+| **🎯 Laser Focus** | Vagal Gain > 1.5x | Peak performance state. High focus + massive vagal response. | Capitalize on this window for high-demand tasks. |
+| **⚡ Attentive** | Entrained α1 > 1.35 | Alert and organized, but holding tension. May feel "wired." | Soften physical tension—drop shoulders, relax jaw. |
+| **🔒 Stuck** | Poor Coherence Response | Rigid system resisting the breath. Trying too hard. | Break the pattern with movement before trying again. |
+
+#### **🟡 Tier II States: Available Baseline (0.75 ≤ α1 ≤ 1.25)**
+
+| State | Trigger Conditions | What It Means | Next Step |
+|-------|-------------------|---------------|-----------|
+| **✨ Feeling the Flow** | Coherence > 1.2 + Vagal Gain > 1.5x + α1 > 1.35 | **OPTIMAL STATE.** Deep recovery and high function. | Maintain exactly what you're doing. |
+| **🌿 Fragile Calm** | Coherence > 1.2 + Low Vagal Gain + α1 > 1.35 | Calm timing but shallow breathing. | Try slightly fuller inhalations to recruit more vagal tone. |
+| **🟢 Open for Business** | Coherence > 1.2 + α1 > 1.35 (other) | Steady and balanced. Not pushing limits. | Extend exhalation if you want deeper recovery. |
+| **⚔️ Tug of War** | Vagal Gain > 1.5x + α1 < 1.35 | Body generating energy but pattern is messy. | Allow the turbulence—relax abdomen, don't force. |
+| **🔥 Burned Out** | α1 < 1.35 + Low Vagal Gain | System deteriorated during session—perceived as stress. | Stop. You need rest, not more training. |
+
+#### **🔴 Tier I States: Low Baseline Structure (α1 < 0.75)**
+
+| State | Trigger Conditions | What It Means | Next Step |
+|-------|-------------------|---------------|-----------|
+| **🏃 Relying on Reserves** | Coherence Ratio ≥ 1.2 | Starting depleted but forcing alignment through effort. | Acute recovery: prioritize rest after this session. |
+| **⚠️ Running Low** | Vagal Gain > 1.5x + α1 < 1.35 | Body is working, mind is tired. Hard to find rhythm. | Reduce session length or slow breathing rate. |
+| **❌ Running on Fumes** | Poor response across all metrics | Internal battery critically low. System can't rebound. | Stop training. Focus on sleep, hydration, nutrition. |
+
+---
+
+### **Special Cases**
+
+| State | Condition | Meaning |
+|-------|-----------|---------|
+| **🌊 Surfing the Wave** | Baseline RMSSD already very high | Started with excellent vagal tone—"low gain" is data artifact, not failure. |
+| **❓ Unknown** | Invalid data or sensor error | Check connection and data quality. |
+
+---
+
+### **Understanding the Logic**
+
+The classification uses **three key metrics**:
+
+1. **Coherence Index** = Entrained α1 / Baseline α1  
+   → Target: **> 1.2** (20% improvement in structure)
+
+2. **Vagal Gain** = Entrained RMSSD / Baseline RMSSD  
+   → Target: **> 1.5x** (50% increase in vagal power)
+
+3. **Entrained α1**  
+   → Target: **> 1.35** (highly organized pattern)
+
+**Your state depends on which targets you hit and where you started.**
+
+---
+
+### **Quick Reference: What Do I Need?**
+
+| To Achieve | You Need |
+|-----------|----------|
+| **Optimal Recovery** (Feeling the Flow) | Balanced baseline (0.75-1.25) + hit all 3 targets |
+| **High Performance** (Laser Focus) | High baseline (>1.25) + high vagal gain |
+| **Avoid Training** (Running on Fumes, Burned Out) | When starting depleted and getting poor response |
+
+---
+
 ## 📱 How to Use the Web Application
 
 ### **1. Access the Dashboard**
@@ -116,18 +200,6 @@ To analyze your autonomic flexibility, you need raw RR interval data exported in
 
 1. **Baseline**: Sit quietly and breathe shallowly but regularly. One minute is a minimum but longer sessions give better results.
 2. **Entrained**: Perform resonant deep breathing (e.g., 6 breaths per minute) for at least one minute. Breathe deeply and regularly. Again, the longer the better.
-
----
-
-## 📊 The 12-State Interpretation Model
-
-The system categorizes results across three Tiers based on **Baseline Alpha-1**:
-
-| Tier | Baseline α1 | Characterization |
-|------|-------------|------------------|
-| **Tier III** | **> 1.25** | **High Structure:** High initial focus or systemic rigidity. |
-| **Tier II** | **0.75 - 1.25** | **Available:** Optimal baseline for adaptation. |
-| **Tier I** | **< 0.75** | **Low Structure:** Chaotic, depleted, or stressed baseline. |
 
 ---
 
@@ -208,8 +280,8 @@ This is a **personal research tool** shared for transparency and to help others 
 
 - ✅ Free for personal use
 - ✅ Open for feedback and scientific discussion
-- ⚠️ Designed only for private use. Not designed for public use
-- ❗ Not a medical device, and not intended to diagnose or treat any medical condition
+- ⚠️ Not actively maintained for public use
+- ⚠️ Not a medical device
 
 If you use this in research, please cite this repository.
 
@@ -236,10 +308,10 @@ GitHub. https://github.com/mahoneyr/HRV-flexibility
 
 ## 📚 Related Resources
 
-**Scientific Background:**
-- [Heart Rate Variability Analysis](https://pubmed.ncbi.nlm.nih.gov/8737210/) - Task Force guidelines
-- [DFA in Exercise Science](https://pubmed.ncbi.nlm.nih.gov/31498541/) - Gronwald et al., 2019
-- [HRV and Autonomic Function](https://pubmed.ncbi.nlm.nih.gov/17201590/) - Thayer et al., 2007
+**Learn More About HRV Science:**
+- Search PubMed for "DFA alpha-1 heart rate variability"
+- Search PubMed for "RMSSD parasympathetic nervous system"
+- Search PubMed for "respiratory sinus arrhythmia"
 
 **Similar Tools:**
 - [HRV4Training](https://www.hrv4training.com/)
@@ -259,4 +331,4 @@ Open an issue to discuss!
 
 ---
 
-*Built for physiological resilience and autonomic insight.*
+Built for physiological resilience and autonomic insight.
