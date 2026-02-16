@@ -281,9 +281,9 @@ This is a **personal research tool** shared for transparency and to help others 
 - ✅ Free for personal use
 - ✅ Open for feedback and scientific discussion
 - ⚠️ Not actively maintained for public use
-- ⚠️ Not a medical device
+- ‼️ Not a medical device or designed to diagnose or treat a medical condition
 
-If you use this in research, please cite this repository.
+*If you use this in research, please cite this repository.*
 
 ---
 
@@ -331,4 +331,4 @@ Open an issue to discuss!
 
 ---
 
-Built for physiological resilience and autonomic insight.
+*Built for physiological resilience and autonomic insight.*
