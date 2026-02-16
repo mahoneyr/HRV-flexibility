@@ -1,21 +1,42 @@
-# Use a lightweight Python base
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements and install them
+# Install system dependencies that might be needed
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first (better caching)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the app code
-COPY . .
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Create directory for plots (Fixed: used -p instead of -path)
-RUN mkdir -p static
+# Copy application code
+COPY app.py .
+COPY data/ ./data/
+COPY templates/ ./templates/
 
-# Expose the web port
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/uploads /app/static /app/data && \
+    chmod -R 755 /app
+
+# Create a non-root user (optional but recommended)
+# Commented out for now since you're using it privately
+# RUN useradd -m -u 1000 appuser && \
+#     chown -R appuser:appuser /app
+# USER appuser
+
+# Expose port
 EXPOSE 5000
 
+# Health check (optional)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/').read()" || exit 1
+
 # Run the application
-CMD ["python", "app.py"]
+CMD ["python", "-u", "app.py"]
