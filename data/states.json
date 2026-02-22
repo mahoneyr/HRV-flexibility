@@ -62,12 +62,15 @@
     "goal": "Ready for Action. You are in a sustainable state. If higher recovery is desired, focus on extending the exhalation phase.",
     "color": "state-green"
   },
-  "tug_of_war": {
-    "state": "Tug of War",
-    "physiology": "Current Snapshot: Significant vagal recruitment ({vagal_gain}x gain) occurred, but the heart rate pattern ({e_alpha}) remained complex.",
-    "implication": "Your body is generating good energy, but it feels a bit 'messy' as your system sorts through stress or fatigue.",
-    "goal": "Allow the Turbulence. The body is responding energetically. Try relaxing the abdomen to see if the rhythm smooths out, but do not force it.",
+"tug_of_war": {
+    "state": "Vagal Brake",
+    "physiology": "Strong vagal recruitment occurred ({vagal_gain}x gain), but the entrained rhythm ({e_alpha}) did not reach the coherence target. The system is stable and well-resourced, but the brake is still engaged.",
+    "implication": "High vagal tone is present but resists increasing coherence. This pattern is common upon waking, after deep recovery, or if the entrainment rate was too fast.",
+    "goal": "Allow the system time to transition. Consider waiting 10–15 minutes before repeating, or try a slower entrainment rate.",
     "color": "state-amber"
+}
+
+
   },
   "burned_out": {
     "state": "Burned Out",
