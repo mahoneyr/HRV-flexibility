@@ -68,9 +68,6 @@
     "implication": "High vagal tone is present but resists increasing coherence. This pattern is common upon waking, after deep recovery, or if the entrainment rate was too fast.",
     "goal": "Allow the system time to transition. Consider waiting 10–15 minutes before repeating, or try a slower entrainment rate.",
     "color": "state-amber"
-}
-
-
   },
   "burned_out": {
     "state": "Burned Out",
