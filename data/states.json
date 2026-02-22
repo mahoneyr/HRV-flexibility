@@ -62,7 +62,7 @@
     "goal": "Ready for Action. You are in a sustainable state. If higher recovery is desired, focus on extending the exhalation phase.",
     "color": "state-green"
   },
-"tug_of_war": {
+  "tug_of_war": {
     "state": "Vagal Brake",
     "physiology": "Strong vagal recruitment occurred ({vagal_gain}x gain), but the entrained rhythm ({e_alpha}) did not reach the coherence target. The system is stable and well-resourced, but the brake is still engaged.",
     "implication": "High vagal tone is present but resists increasing coherence. This pattern is common upon waking, after deep recovery, or if the entrainment rate was too fast.",
