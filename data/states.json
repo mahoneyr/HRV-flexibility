@@ -77,10 +77,10 @@
     "color": "state-red"
   },
   "surfing_the_wave": {
-    "state": "Surfing the Wave",
+    "state": "Vagal Wave",
     "physiology": "Current Snapshot: High baseline vagal tone ({b_rmssd}ms) limited the calculation of relative gain, but coherence remained high.",
     "implication": "You started this session already feeling great, so there wasn't much room (or need) to improve your score.",
-    "goal": "Disregard Score. Your physiology is optimized. The 'Low Gain' is a data limitation, not a physiological failure.",
+    "goal": "Ride the wave. Your physiology is optimized. The 'Low Gain' is a data limitation, not a physiological failure.",
     "color": "state-green"
   },
   "unknown": {
