@@ -22,7 +22,7 @@
   },
   "relying_on_reserves": {
     "state": "Relying on Reserves",
-    "physiology": "Current Snapshot: A scattered baseline ({b_alpha}) was successfully forced into alignment by the breath, achieving a {coherence_ratio}x improvement.",
+    "physiology": "Current Snapshot: An unstructured baseline ({b_alpha}) became more coherent during entrainment ({coherence_ratio}x improvement).",
     "implication": "You are performing well, but it might feel harder than usual because you started with low energy.",
     "goal": "Acute Recovery. You have successfully shifted state, but given the low baseline, prioritize rest/nutrition after this session.",
     "color": "state-yellow"
@@ -30,8 +30,8 @@
   "running_low": {
     "state": "Running Low",
     "physiology": "Current Snapshot: From a low baseline ({b_alpha}), the body generated Vagal Gain ({vagal_gain}x), but the heart rate pattern remained complex ({e_alpha}).",
-    "implication": "Your body is doing the work, but your mind is likely tired or distracted, making it hard to find a smooth rhythm.",
-    "goal": "Reduce Load. The body is working hard to comply. Consider a shorter session or a more comfortable breathing rate to reduce strain.",
+    "implication": "Your body is working hard to respond, but low reserves are limiting how far the rhythm can organize. Sailing against a headwind.",
+    "goal": "Rest and replenish your reserves. Consider repeating with a more comfortable breathing rate.",
     "color": "state-dark-orange"
   },
   "running_on_fumes": {
@@ -43,7 +43,7 @@
   },
   "feeling_the_flow": {
     "state": "Feeling the Flow",
-    "physiology": "OPTIMAL. A balanced baseline ({b_alpha}) surged into high coherence ({e_alpha}) and high vagal recruitment ({vagal_gain}x gain).",
+    "physiology": "Current Snapshot: A balanced baseline ({b_alpha}) surged into high coherence ({e_alpha}) and high vagal recruitment ({vagal_gain}x gain).",
     "implication": "Breathing feels effortless and rewarding. You are in a state of deep recovery and high function.",
     "goal": "Maintain Protocol. This is the ideal physiological state for neuroplasticity and recovery. Continue as is.",
     "color": "state-green"
@@ -71,9 +71,9 @@
   },
   "burned_out": {
     "state": "Burned Out",
-    "physiology": "Current Snapshot: An organized baseline ({b_alpha}) deteriorated into disorder ({e_alpha}) during the session.",
-    "implication": "Instead of relaxing, the effort of the session caused a stress reaction. You might be pushing when you need to rest.",
-    "goal": "Reduce Pressure. The nervous system perceived the breathing as a stressor. Stop for now and try a gentler approach later.",
+    "physiology": "Current Snapshot: A stable baseline ({b_alpha}) deteriorated during the session ({e_alpha}), with low vagal recruitment ({vagal_gain}x gain).",
+    "implication": "Instead of relaxing, the session increased stress. You might be pushing when you need to rest.",
+    "goal": "Rest. Even breathing is a stressor right now.",
     "color": "state-red"
   },
   "surfing_the_wave": {
