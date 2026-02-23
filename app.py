@@ -68,14 +68,27 @@ def load_state_definitions():
 # Load on startup
 load_state_definitions()
 
-# --- 9-STATE "INTEGRATION & DYNAMICS" LOGIC ---
+# --- 12-STATE "INTEGRATION & DYNAMICS" LOGIC (v2) ---
+# Classification is based on a 2x2 response matrix (Coherence Ratio x Vagal Gain)
+# with Tier context (Baseline Alpha) modifying the meaning of each cell.
+# Entrained Alpha is now a reported output only — not a classifier.
+#
+# 2x2 Core:
+#   Gain > 1.5 + Ratio > 1.2  →  Full Response  (Flow / Reserves / Laser)
+#   Gain > 1.5 + Ratio < 1.2  →  Vagal Brake    (energy without organization)
+#   Gain < 1.5 + Ratio > 1.2  →  Fragile Calm   (structure without amplitude)
+#   Gain < 1.5 + Ratio < 1.2  →  No Response    (Burned Out / Stuck / Fumes)
+#
+# Special Override (applied first):
+#   b_rmssd > 30 + Ratio > 1.2 →  Vagal Wave    (ceiling effect)
+
 def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd):
     """
-    Classifies user state using the "Integration" (Structure) and "Dynamics" (Range) framework.
+    Classifies user state using the 2x2 Response Matrix + Tier context framework.
     
     Args:
         b_alpha (float): Baseline DFA Alpha-1
-        e_alpha (float): Entrained DFA Alpha-1
+        e_alpha (float): Entrained DFA Alpha-1 (reported only, not used for classification)
         b_rmssd (float): Baseline RMSSD
         e_rmssd (float): Entrained RMSSD
         
@@ -92,38 +105,43 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd):
     # Identify the key based on logic
     key = "unknown"
 
-    # --- TIER III: INTEGRATED BASELINE (Base > 1.25) ---
-    if b_alpha > 1.25:
-        if vagal_gain > 1.5:
-            key = "laser_focus"
-        elif e_alpha > 1.35: 
-            key = "attentive"
-        else:
-            key = "stuck"
+    # --- SPECIAL OVERRIDE: VAGAL WAVE ---
+    # High baseline RMSSD compresses relative gain — ceiling effect, not failure.
+    if b_rmssd > 30 and coherence_ratio >= 1.2:
+        key = "surfing_the_wave"
 
-    # --- TIER I: FRAGMENTED BASELINE (Base < 0.75) ---
+    # --- TIER III: HIGH BASELINE (b_alpha > 1.25) ---
+    elif b_alpha > 1.25:
+        if vagal_gain >= 1.5 and coherence_ratio >= 1.2:
+            key = "laser_focus"          # Full response from high base
+        elif vagal_gain >= 1.5 and coherence_ratio < 1.2:
+            key = "tug_of_war"           # Vagal Brake — energy without structure
+        elif vagal_gain < 1.5 and coherence_ratio >= 1.2:
+            key = "attentive"            # Structure held, no vagal recruitment
+        else:
+            key = "stuck"                # No response in either axis
+
+    # --- TIER I: LOW BASELINE (b_alpha < 0.75) ---
     elif b_alpha < 0.75:
-        if coherence_ratio >= 1.2:
-            key = "relying_on_reserves"
-        elif vagal_gain > 1.5 and e_alpha < 1.35:
-            key = "running_low"
+        if vagal_gain >= 1.5 and coherence_ratio >= 1.2:
+            key = "relying_on_reserves"  # Full response despite low base
+        elif vagal_gain >= 1.5 and coherence_ratio < 1.2:
+            key = "running_low"          # Vagal Brake on depleted system
+        elif vagal_gain < 1.5 and coherence_ratio >= 1.2:
+            key = "fragile_calm"         # Structure shifted, amplitude limited
         else:
-            key = "running_on_fumes"
+            key = "running_on_fumes"     # No response — system is depleted
 
-    # --- TIER II: AVAILABLE BASELINE (0.75 <= Base <= 1.25) ---
+    # --- TIER II: AVAILABLE BASELINE (0.75 <= b_alpha <= 1.25) ---
     else:
-        if e_alpha >= 1.35:
-            if vagal_gain >= 1.5 and coherence_ratio >= 1.2:
-                key = "feeling_the_flow"
-            elif vagal_gain < 1.5 and coherence_ratio >= 1.2:
-                key = "fragile_calm"
-            else:
-                key = "open_for_business"
+        if vagal_gain >= 1.5 and coherence_ratio >= 1.2:
+            key = "feeling_the_flow"     # Full response — optimal state
+        elif vagal_gain >= 1.5 and coherence_ratio < 1.2:
+            key = "tug_of_war"           # Vagal Brake — energy without structure
+        elif vagal_gain < 1.5 and coherence_ratio >= 1.2:
+            key = "fragile_calm"         # Structure shifted, amplitude limited
         else:
-            if vagal_gain >= 1.5:
-                key = "tug_of_war"
-            else:
-                key = "burned_out"
+            key = "burned_out"           # No response — system perceived stress
 
     # Retrieve data from JSON
     raw_data = STATE_DEFINITIONS.get(key, STATE_DEFINITIONS.get("unknown", {}))
