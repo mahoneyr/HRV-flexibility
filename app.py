@@ -225,7 +225,11 @@ class AutonomicFlexibilityAnalyzer:
                     
                     # Calculate differences
                     diffs = np.diff(times)
-                    
+
+                    if len(diffs) == 0:
+                        logger.warning("Not enough timestamps to compute gaps for auto-split.")
+                        return
+
                     # If datetime objects, diffs are Timedeltas, convert to seconds
                     if hasattr(diffs[0], 'total_seconds'):
                         diffs = [d.total_seconds() for d in diffs]
@@ -262,7 +266,8 @@ class AutonomicFlexibilityAnalyzer:
                     date_col = df.columns[clean_cols.index('date')]
                     raw_date = str(df[date_col].iloc[0])
                     return raw_date.split('+')[0].strip()
-            except:
+            except Exception as e:
+                logger.warning(f"Could not parse date from DataFrame: {e}")
                 continue
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -600,8 +605,8 @@ def save_to_history(m, plot_file):
             df = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
             if 'Date' in df.columns:
                 existing_dates = set(df['Date'].astype(str).str.strip().values)
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Error reading history for duplicate check: {e}")
 
     if date_str in existing_dates:
         try:
@@ -609,8 +614,8 @@ def save_to_history(m, plot_file):
             df = df[df['Date'].astype(str).str.strip() != date_str]
             df.to_csv(HISTORY_FILE, index=False)
             logger.info(f"Updated entry for: {date_str}")
-        except:
-            pass
+        except Exception as e:
+            logger.error(f"Error removing duplicate history entry: {e}")
 
     with open(HISTORY_FILE, 'a', newline='') as f:
         writer = csv.writer(f)
@@ -749,15 +754,23 @@ def process_files(f1, f2):
     try:
         analyzer = AutonomicFlexibilityAnalyzer(p1, p2)
         metrics = analyzer.run()
-        
+
         # Validate that we actually got numbers back
         if not metrics or 'coherence_index' not in metrics:
             raise ValueError("Analysis failed to generate valid metrics.")
-            
+
         return metrics, analyzer
     except Exception as e:
         logger.error(f"Error during analysis: {e}")
         return None, None
+    finally:
+        # Clean up uploaded files regardless of outcome
+        for path in (p1, p2):
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception as e:
+                logger.warning(f"Could not remove uploaded file {path}: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -844,10 +857,10 @@ def latest():
         return redirect(url_for('view_session', date=history[0]['Date']))
     return redirect(url_for('index'))
 
-@app.route('/delete')
+@app.route('/delete', methods=['POST'])
 def delete():
     """Handle session deletion."""
-    date_str = request.args.get('date')
+    date_str = request.form.get('date')
     if date_str:
         delete_from_history(date_str)
     return redirect(url_for('index'))
