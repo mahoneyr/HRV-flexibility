@@ -13,6 +13,16 @@ This approach quantifies **Autonomic Flexibility**: the system's capacity to tra
 
 ---
 
+## ⚠️ Disclaimer
+
+**This project is for educational and research purposes only.** It is **not intended for medical diagnosis, treatment, or any clinical use**. Heart rate variability analysis provided by this tool should not be used as a substitute for professional medical advice. 
+
+Always consult with a qualified healthcare provider regarding any health concerns or before making health-related decisions based on HRV data.
+
+This tool does not provide medical diagnostics and should not be used to make medical decisions.
+
+---
+
 ## 🎯 Why This Tool?
 
 Standard HRV apps show you a single number (RMSSD or SDNN) from one state. But autonomic function isn't about a single snapshot—it's about **flexibility**: your system's capacity to shift states.
