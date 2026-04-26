@@ -194,7 +194,7 @@ Upload **two separate CSV files:**
 1. **Baseline file:** RR intervals from your resting session
 2. **Entrained file:** RR intervals from your resonant breathing session
 
-**Optional:** If you recorded both sessions in one continuous file with a 10–30s pause between them, you can upload the same file twice and the app will auto-detect and split it.
+Each file should contain only one type of breathing—don't mix resting and deep breathing in the same file.
 
 ---
 
@@ -208,9 +208,9 @@ Once the container is running, navigate to http://localhost:5000. You will see t
 
 Upload your two CSV files:
 * **Baseline file:** Your resting RR intervals (CSV with RR column)
-* **Entrained file:** Your breathing RR intervals (CSV with RR column)
+* **Entrained file:** Your resonant breathing RR intervals (CSV with RR column)
 
-**Alternative:** If both sessions are in one file, you can upload it twice and the app will auto-detect the gap between them.
+Keep the files separate—don't mix resting and deep breathing data.
 
 ### **3. Reviewing the Results**
 
@@ -297,10 +297,6 @@ docker rm hrv-analyzer
 - Check Docker is running: `docker ps`
 - Check logs: `docker logs hrv-analyzer`
 
-### **Auto-split not working**
-- Ensure there's a 10+ second gap between baseline and breathing sessions
-- Check that timestamps in your CSV are continuous
-- Verify both files are identical (same file uploaded twice)
 
 ### **Graphs not showing**
 - Check browser console for errors (F12)
@@ -319,7 +315,7 @@ docker rm hrv-analyzer
 - **Minimum session length:** Baseline and entrained sessions should be at least 1 minute each (longer is better for accuracy)
 - **RR interval range:** Values outside 300–2000ms are filtered as artifacts; extreme arrhythmias may not process correctly
 - **Sampling rate:** Requires consistent RR interval capture; gaps >5 seconds may indicate recording issues
-- **Auto-split accuracy:** Relies on >10 second pause to detect baseline/breathing transition; inconsistent pauses may fail to split
+- **Data separation:** Baseline and entrained data must be in separate files—mixing breathing patterns will compromise results
 - **Historical benchmarking:** Requires multiple sessions to establish meaningful "Normal Range" (±1 SD)
 - **Not FDA approved:** This tool has not undergone clinical validation and should not be used for medical diagnosis
 - **Artifact filtering:** The MAD filter removes outliers but may miss some ectopic beats in highly irregular recordings
