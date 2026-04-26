@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![Flask](https://img.shields.io/badge/flask-3.0-green.svg)
-![License](https://img.shields.io/badge/license-Personal%20Use-orange.svg)
+![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)
 
 > Quantify your autonomic nervous system's ability to shift from chaos to coherence using HRV analysis
@@ -169,6 +169,32 @@ The classification uses **three key metrics**:
 
 ---
 
+## 📋 Input Data Format
+
+The analyzer requires **CSV files** with raw RR interval data. Here's what you need to know:
+
+### **CSV Requirements**
+- **Column name:** Must have a column labeled `RR` (case-insensitive)
+- **Values:** RR intervals in **milliseconds** (typical range: 300–2000ms)
+- **Minimum data:** 30 heartbeats per session (1–2 minutes of data)
+- **No header required** but recommended for clarity
+
+### **Example CSV Format**
+```
+RR
+850
+820
+875
+900
+...
+```
+
+### **Two Upload Modes**
+1. **Dual File Mode:** Upload separate baseline and breathing files
+2. **Auto-Split Mode:** Upload a single continuous file with 10–30s gap between sessions—the app will auto-detect and split it
+
+---
+
 ## 📱 How to Use the Web Application
 
 ### **1. Access the Dashboard**
@@ -284,14 +310,28 @@ docker rm hrv-analyzer
 
 ---
 
+## ⚙️ Known Limitations
+
+- **Minimum session length:** Baseline and entrained sessions should be at least 1 minute each (longer is better for accuracy)
+- **RR interval range:** Values outside 300–2000ms are filtered as artifacts; extreme arrhythmias may not process correctly
+- **Sampling rate:** Requires consistent RR interval capture; gaps >5 seconds may indicate recording issues
+- **Auto-split accuracy:** Relies on >10 second pause to detect baseline/breathing transition; inconsistent pauses may fail to split
+- **Historical benchmarking:** Requires multiple sessions to establish meaningful "Normal Range" (±1 SD)
+- **Not FDA approved:** This tool has not undergone clinical validation and should not be used for medical diagnosis
+- **Artifact filtering:** The MAD filter removes outliers but may miss some ectopic beats in highly irregular recordings
+- **Data persistence:** Session data is stored locally; migrating Docker containers may lose history without proper volume setup
+
+---
+
 ## 💡 About This Tool
 
-This is a **personal research tool** shared for transparency and to help others interested in HRV analysis.
+This is an **open-source research tool** for exploring autonomic nervous system flexibility through HRV analysis.
 
-- ✅ Free for personal use
+- ✅ Open-source under GPL v3
+- ✅ Free for personal and commercial use (with copyleft requirements)
 - ✅ Open for feedback and scientific discussion
-- ⚠️ Not actively maintained for public use
-- ‼️ Not a medical device or designed to diagnose or treat a medical condition
+- ⚠️ Community-driven; contributions welcome
+- ‼️ Not a medical device; for educational and research purposes only
 
 *If you use this in research, please cite this repository.*
 
@@ -299,7 +339,14 @@ This is a **personal research tool** shared for transparency and to help others 
 
 ## 📄 License & Disclaimer
 
-**License:** Free for personal use. Commercial use is strictly prohibited without prior authorization.
+**License:** GNU General Public License v3 (GPL v3)
+
+This project is licensed under GPL v3, meaning:
+- ✅ You can use, modify, and distribute this software freely
+- ✅ Any derivatives must also be open-source under GPL v3
+- ✅ Commercial use is permitted, but modifications must be shared
+
+See the LICENSE file for full details.
 
 **Medical Disclaimer:** This tool is for educational and research purposes only. It is NOT:
 - A medical diagnostic device
@@ -310,7 +357,7 @@ Always consult healthcare professionals for medical decisions.
 
 **Citation:** If you use this tool in research, please cite:
 ```
-Mahoney, R. (2025). Autonomic Flexibility Analyzer: Multi-State HRV Analysis Tool. 
+Mahoney, R. (2026). Autonomic Flexibility Analyzer: Multi-State HRV Analysis Tool. 
 GitHub. https://github.com/mahoneyr/HRV-flexibility
 ```
 
