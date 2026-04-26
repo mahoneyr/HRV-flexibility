@@ -189,9 +189,12 @@ RR
 ...
 ```
 
-### **Two Upload Modes**
-1. **Dual File Mode:** Upload separate baseline and breathing files
-2. **Auto-Split Mode:** Upload a single continuous file with 10–30s gap between sessions—the app will auto-detect and split it
+### **Upload Your Files**
+Upload **two separate CSV files:**
+1. **Baseline file:** RR intervals from your resting session
+2. **Entrained file:** RR intervals from your resonant breathing session
+
+**Optional:** If you recorded both sessions in one continuous file with a 10–30s pause between them, you can upload the same file twice and the app will auto-detect and split it.
 
 ---
 
@@ -203,10 +206,11 @@ Once the container is running, navigate to http://localhost:5000. You will see t
 
 ### **2. Uploading Data**
 
-The analyzer supports two workflow modes:
+Upload your two CSV files:
+* **Baseline file:** Your resting RR intervals (CSV with RR column)
+* **Entrained file:** Your breathing RR intervals (CSV with RR column)
 
-* **Dual File Mode:** Select your Baseline CSV in the first slot and your Entrained (Breathing) CSV in the second slot.
-* **Single File Mode (Auto-Split):** If you recorded both sessions in one continuous file with a short break (10–30s) in between, simply upload the **same file** to both the Baseline and Entrained inputs. The app will detect the gap and split the data for you.
+**Alternative:** If both sessions are in one file, you can upload it twice and the app will auto-detect the gap between them.
 
 ### **3. Reviewing the Results**
 
