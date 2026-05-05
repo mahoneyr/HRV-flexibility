@@ -8,6 +8,7 @@ import uuid
 import csv
 import logging
 import json
+import gc
 from datetime import datetime
 from flask import Flask, render_template, request, url_for, redirect, Response
 from werkzeug.utils import secure_filename
@@ -424,37 +425,41 @@ class AutonomicFlexibilityAnalyzer:
         r_base = self.calculate_rmssd(base_rr)
         r_entr = self.calculate_rmssd(entr_rr)
         resp_rate = self.calculate_resp_rate(entr_rr)
-        
+
         coherence_index = a_entr / a_base if a_base > 0 else 0
         vagal_gain = r_entr / r_base if r_base > 0 else 0
-        
+
         interp = get_interpretation(a_base, a_entr, r_base, r_entr)
-        
+
+        # Explicitly free large numpy arrays
+        del base_rr, entr_rr
+
         self.results = {
             'date': self.get_session_date(),
-            'a_base': round(a_base, 2), 
+            'a_base': round(a_base, 2),
             'a_entr': round(a_entr, 2),
             'coherence_index': round(coherence_index, 2),
-            'r_base': round(r_base, 1), 
+            'r_base': round(r_base, 1),
             'r_entr': round(r_entr, 1),
             'vagal_gain': round(vagal_gain, 2),
             'entrained_resp_rate': resp_rate,
-            'interp': interp 
+            'interp': interp
         }
         return self.results
 
     def plot(self, filename):
         """Generate and save the comparison plot with historical error bars."""
-        fig, ax = plt.subplots(2, 2, figsize=(12, 10)) 
-        base_rr = self.get_rr_values(self.baseline_df)
-        entr_rr = self.get_rr_values(self.entrained_df)
-        
-        # Use cleaned data for plotting too, so graph matches metrics
-        clean_b = self.preprocess_rr(base_rr)
-        clean_e = self.preprocess_rr(entr_rr)
-        
-        bpm_b = 60000/clean_b if len(clean_b) > 0 else []
-        bpm_e = 60000/clean_e if len(clean_e) > 0 else []
+        try:
+            fig, ax = plt.subplots(2, 2, figsize=(12, 10))
+            base_rr = self.get_rr_values(self.baseline_df)
+            entr_rr = self.get_rr_values(self.entrained_df)
+
+            # Use cleaned data for plotting too, so graph matches metrics
+            clean_b = self.preprocess_rr(base_rr)
+            clean_e = self.preprocess_rr(entr_rr)
+
+            bpm_b = 60000/clean_b if len(clean_b) > 0 else []
+            bpm_e = 60000/clean_e if len(clean_e) > 0 else []
         
         # --- Top Left: Baseline Heart Rate ---
         ax[0,0].plot(bpm_b, color='gray', alpha=0.7)
@@ -475,42 +480,31 @@ class AutonomicFlexibilityAnalyzer:
         hist_means = {'a_base': 0, 'a_entr': 0, 'r_base': 0, 'r_entr': 0}
         hist_stds = {'a_base': 0, 'a_entr': 0, 'r_base': 0, 'r_entr': 0}
         
-        try:
-            # 1. Load History
-            df_hist = pd.DataFrame()
-            if os.path.exists(HISTORY_FILE):
-                df_hist = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
-            
-            # 2. Add Current Session (in memory) for the sake of stats
-            current_data = {
-                'Baseline_Alpha': self.results.get('a_base'),
-                'Entrained_Alpha': self.results.get('a_entr'),
-                'Baseline_RMSSD': self.results.get('r_base'),
-                'Entrained_RMSSD': self.results.get('r_entr')
-            }
-            # Append current row using concat
-            df_hist = pd.concat([df_hist, pd.DataFrame([current_data])], ignore_index=True)
-            
-            # 3. Calculate Stats
-            cols_map = {
-                'a_base': 'Baseline_Alpha',
-                'a_entr': 'Entrained_Alpha',
-                'r_base': 'Baseline_RMSSD',
-                'r_entr': 'Entrained_RMSSD'
-            }
-            
-            for k, col in cols_map.items():
-                if col in df_hist.columns:
-                    vals = pd.to_numeric(df_hist[col], errors='coerce').dropna()
-                    if len(vals) > 0:
-                        hist_means[k] = vals.mean()
-                        # Use Sample SD (ddof=1) or Population (ddof=0). Default is 1.
-                        # If len=1, std is NaN, so handle that.
-                        sd = vals.std()
-                        if pd.isna(sd): sd = 0
-                        hist_stds[k] = sd
-        except Exception as e:
-            logger.error(f"Error calculating stats for plot: {e}")
+            try:
+                # 1. Load History
+                if os.path.exists(HISTORY_FILE):
+                    df_hist = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
+
+                    # Calculate stats directly without concatenation (more efficient)
+                    cols_map = {
+                        'a_base': 'Baseline_Alpha',
+                        'a_entr': 'Entrained_Alpha',
+                        'r_base': 'Baseline_RMSSD',
+                        'r_entr': 'Entrained_RMSSD'
+                    }
+
+                    for k, col in cols_map.items():
+                        if col in df_hist.columns:
+                            vals = pd.to_numeric(df_hist[col], errors='coerce').dropna()
+                            if len(vals) > 0:
+                                hist_means[k] = vals.mean()
+                                sd = vals.std()
+                                if pd.isna(sd): sd = 0
+                                hist_stds[k] = sd
+
+                    del df_hist  # Explicitly free memory
+            except Exception as e:
+                logger.error(f"Error calculating stats for plot: {e}")
 
         # --- Bottom Left: ALPHA-1 Comparison (Structure) ---
         vals_alpha = [self.results['a_base'], self.results['a_entr']]
@@ -564,11 +558,21 @@ class AutonomicFlexibilityAnalyzer:
         ax[1, 1].grid(True, axis='y', linestyle='--', alpha=0.5)
         ax[1, 1].legend(loc='upper left', fontsize='small')
 
-        plt.tight_layout()
-        filepath = os.path.join(app.config['STATIC_FOLDER'], filename)
-        plt.savefig(filepath)
-        plt.close(fig)
-        return filename
+            plt.tight_layout()
+            filepath = os.path.join(app.config['STATIC_FOLDER'], filename)
+            plt.savefig(filepath)
+            plt.close(fig)
+
+            # Clear matplotlib caches to prevent memory accumulation
+            plt.close('all')
+
+            # Explicitly delete large arrays
+            del base_rr, entr_rr, clean_b, clean_e, bpm_b, bpm_e
+
+            return filename
+        finally:
+            # Ensure cleanup even if error occurs
+            plt.close('all')
 
 def ensure_history_header():
     """Ensure history CSV file exists and has correct headers."""
@@ -633,14 +637,14 @@ def save_to_history(m, plot_file):
 
 def get_history():
     """Retrieve all history records from CSV."""
-    if not os.path.exists(HISTORY_FILE): 
+    if not os.path.exists(HISTORY_FILE):
         return []
 
     try:
         ensure_history_header()
         df = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
         df.columns = [c.strip() for c in df.columns]
-        
+
         rename_map = {
             'Normal_Alpha': 'Baseline_Alpha',
             'Normal_RMSSD': 'Baseline_RMSSD',
@@ -648,7 +652,10 @@ def get_history():
         }
         df.rename(columns=rename_map, inplace=True)
 
-        if df.empty: return []
+        if df.empty:
+            del df
+            gc.collect()
+            return []
 
         if 'Date' in df.columns:
             df['_sort_date'] = pd.to_datetime(df['Date'], errors='coerce')
@@ -656,7 +663,8 @@ def get_history():
             df = df.drop(columns=['_sort_date'])
 
         records = df.to_dict('records')
-        
+        del df
+
         for r in records:
             try:
                 a_base = float(r.get('Baseline_Alpha', 0))
@@ -665,16 +673,17 @@ def get_history():
                 r_entr = float(r.get('Entrained_RMSSD', 0))
             except:
                 a_base, a_entr, r_base, r_entr = 0, 0, 0, 0
-            
+
             # Ensure resp rate exists for older records
             if 'Entrained_Resp_Rate' not in r or pd.isna(r['Entrained_Resp_Rate']):
                 r['Entrained_Resp_Rate'] = '-'
-                
+
             interp = get_interpretation(a_base, a_entr, r_base, r_entr)
             r['color'] = interp['color']
             r['state'] = interp['state']
-            r['goal'] = interp['goal'] 
-            
+            r['goal'] = interp['goal']
+
+        gc.collect()
         return records
 
     except Exception as e:
@@ -779,24 +788,30 @@ def index():
         # Check if files are present in request
         if 'baseline' not in request.files or 'entrained' not in request.files:
             return "Missing files", 400
-            
+
         f1 = request.files['baseline']
         f2 = request.files['entrained']
-        
+
         # Check if filenames are empty
         if f1.filename == '' or f2.filename == '':
             return "No selected file", 400
 
         if f1 and allowed_file(f1.filename) and f2 and allowed_file(f2.filename):
             metrics, analyzer = process_files(f1, f2)
-            
+
             if metrics and analyzer:
                 try:
                     img_name = f"plot_{uuid.uuid4().hex}.png"
                     analyzer.plot(img_name)
-                    
+
+                    session_date = metrics['date']
                     save_to_history(metrics, img_name)
-                    return redirect(url_for('view_session', date=metrics['date']))
+
+                    # Explicitly free the analyzer object
+                    del analyzer, metrics
+                    gc.collect()
+
+                    return redirect(url_for('view_session', date=session_date))
                 except Exception as e:
                     logger.error(f"Error saving results/plotting: {e}")
                     return "Error generating results", 500
@@ -804,7 +819,7 @@ def index():
                 return "Error processing files. Please ensure they are valid CSVs.", 400
         else:
             return "Invalid file type. Please upload .csv files.", 400
-            
+
     history = get_history()
     return render_template('index.html', history=history)
 
