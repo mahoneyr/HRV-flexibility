@@ -38,5 +38,5 @@ EXPOSE 5000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5000/').read()" || exit 1
 
-# Run the application
-CMD ["python", "-u", "app.py"]
+# Run the application (single-threaded to reduce memory overhead)
+CMD ["python", "-u", "-X", "dev", "app.py"]
