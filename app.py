@@ -46,6 +46,9 @@ HISTORY_COLUMNS = [
     'Baseline_HR', 'Baseline_Mean_RR'
 ]
 
+# In-memory cache for history to avoid re-reading CSV on every request
+_history_cache = {'data': None, 'mtime': None}
+
 # Initialize history file if needed
 if not os.path.exists(HISTORY_FILE):
     with open(HISTORY_FILE, 'w', newline='') as f:
@@ -1003,11 +1006,22 @@ def save_to_history(m, plot_file):
         logger.warning(f"Could not update user profile: {e}")
 
 def get_history():
-    """Retrieve all history records from CSV."""
+    """Retrieve all history records from CSV with in-memory caching.
+
+    Only re-reads the CSV file if it has been modified since the last load,
+    reducing memory thrashing from repeated DataFrame allocations.
+    """
+    global _history_cache
+
     if not os.path.exists(HISTORY_FILE):
         return []
 
     try:
+        # Check if file has been modified since last load
+        current_mtime = os.path.getmtime(HISTORY_FILE)
+        if _history_cache['data'] is not None and _history_cache['mtime'] == current_mtime:
+            return _history_cache['data']
+
         ensure_history_header()
         df = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
         df.columns = [c.strip() for c in df.columns]
@@ -1022,6 +1036,8 @@ def get_history():
         if df.empty:
             del df
             gc.collect()
+            _history_cache['data'] = []
+            _history_cache['mtime'] = current_mtime
             return []
 
         if 'Date' in df.columns:
@@ -1050,6 +1066,9 @@ def get_history():
             r['state'] = interp['state']
             r['goal'] = interp['goal']
 
+        # Cache the results
+        _history_cache['data'] = records
+        _history_cache['mtime'] = current_mtime
         gc.collect()
         return records
 
