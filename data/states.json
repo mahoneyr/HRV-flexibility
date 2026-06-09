@@ -1,93 +1,145 @@
 {
-  "laser_focus": {
-    "state": "Laser Focus",
-    "physiology": "Current Snapshot: Your high-structure baseline ({b_alpha}) successfully recruited massive vagal power ({vagal_gain}x gain) during the session.",
-    "implication": "You are likely feeling sharp, energized, and capable. Your mind and body are working in perfect sync right now.",
-    "goal": "Performance Window. You are primed for high cognitive or physical load. Capitalize on this state.",
-    "color": "state-green"
-  },
-  "attentive": {
-    "state": "Attentive",
-    "physiology": "Current Snapshot: A highly organized baseline ({b_alpha}) was maintained ({e_alpha}), but the system resisted recruiting additional vagal tone ({vagal_gain}x gain).",
-    "implication": "You are focused and alert, but holding onto physical tension. You might feel 'wired' rather than relaxed.",
-    "goal": "Soften Tension. This state is often associated with intense focus. To shift into recovery, consciously drop your shoulders and relax the jaw.",
-    "color": "state-gray"
-  },
-  "stuck": {
-    "state": "Stuck",
-    "physiology": "Current Snapshot: A rigid baseline ({b_alpha}) showed high resistance to the breathing stimulus, resulting in a flat Coherence Ratio ({coherence_ratio}x).",
-    "implication": "You may be trying too hard. The harder you concentrate on the breath, the more your system is tightening up.",
-    "goal": "Reset Pattern. No force required. Physical movement (stretching, shaking hands) may help break the static state before trying again.",
-    "color": "state-burnt"
-  },
-  "relying_on_reserves": {
-    "state": "Relying on Reserves",
-    "physiology": "Current Snapshot: An unstructured baseline ({b_alpha}) became more coherent during entrainment ({coherence_ratio}x improvement).",
-    "implication": "You are performing well, but it might feel harder than usual because you started with low energy.",
-    "goal": "Acute Recovery. You have successfully shifted state, but given the low baseline, prioritize rest/nutrition after this session.",
-    "color": "state-yellow"
-  },
-  "running_low": {
-    "state": "Running Low",
-    "physiology": "Current Snapshot: From a low baseline ({b_alpha}), the body generated Vagal Gain ({vagal_gain}x), but the heart rate pattern remained complex ({e_alpha}).",
-    "implication": "Your body is working hard to respond, but low reserves are limiting how far the rhythm can organize. Sailing against a headwind.",
-    "goal": "Rest and replenish your reserves. Consider repeating with a more comfortable breathing rate.",
-    "color": "state-dark-orange"
-  },
-  "running_on_fumes": {
-    "state": "Running on Fumes",
-    "physiology": "Current Snapshot: A depleted baseline ({b_alpha}) showed no significant response to the breathing protocol in either structure or energy.",
-    "implication": "Your internal battery is low. Even with effort, your system isn't able to bounce back effectively right now.",
-    "goal": "Restorative Protocol. Training is likely counter-productive right now. Prioritize hydration, sleep, and passive recovery.",
-    "color": "state-red"
-  },
   "feeling_the_flow": {
-    "state": "Feeling the Flow",
-    "physiology": "Current Snapshot: A balanced baseline ({b_alpha}) surged into high coherence ({e_alpha}) and high vagal recruitment ({vagal_gain}x gain).",
-    "implication": "Breathing feels effortless and rewarding. You are in a state of deep recovery and high function.",
-    "goal": "Maintain Protocol. This is the ideal physiological state for neuroplasticity and recovery. Continue as is.",
-    "color": "state-green"
+    "state": "Open for Business",
+    "physiology": "At rest, the heart rhythm was varied and flexible, responding to many signals at once. With entrainment, the heart followed the breath into a strong, steady rise and fall.",
+    "implication": "Relaxed and ready at rest, and able to settle deeply when guided. This is the pattern you want.",
+    "goal": "Nothing to change. The system is working well.",
+    "color": "state-green",
+    "baseline": "At rest, the heart rhythm was varied and flexible, responding to many signals at once.",
+    "entrainment": "With entrainment, the heart followed the breath into a strong, steady rise and fall.",
+    "takeaway": "Nothing to change. The system is working well.",
+    "_cell": "broad_strong"
   },
   "fragile_calm": {
     "state": "A Fragile Calm",
-    "physiology": "Current Snapshot: The heart rate followed the breathing timing perfectly ({e_alpha}), but the physiological amplitude ({vagal_gain}x) remained suppressed.",
-    "implication": "You feel calm on the surface, but the breathing isn't quite deep enough to trigger a full physical recharge.",
-    "goal": "Modulate Depth. If comfortable, try a slightly fuller inhalation. Often, a small increase in tidal volume recruits the vagus nerve without changing speed.",
-    "color": "state-soft-green"
+    "physiology": "At rest, the heart rhythm was varied and flexible. With entrainment, the heart followed the breath, but the rise and fall stayed gentle.",
+    "implication": "The system settled when guided, but without much depth behind it.",
+    "goal": "A fine result. A slower or longer session may let the response deepen.",
+    "color": "state-soft-green",
+    "baseline": "At rest, the heart rhythm was varied and flexible.",
+    "entrainment": "With entrainment, the heart followed the breath, but the rise and fall stayed gentle.",
+    "takeaway": "A fine result. A slower or longer session may let the response deepen.",
+    "_cell": "broad_weak"
   },
-  "open_for_business": {
-    "state": "Open for Business",
-    "physiology": "Current Snapshot: A stable baseline ({b_alpha}) maintained equilibrium throughout the session without significant deviation.",
-    "implication": "You are steady and balanced. You aren't pushing limits, but you are maintaining a healthy baseline.",
-    "goal": "Ready for Action. You are in a sustainable state. If higher recovery is desired, focus on extending the exhalation phase.",
-    "color": "state-green"
+  "laser_focus": {
+    "state": "Laser Focus",
+    "physiology": "At rest, the heart rhythm was tightly controlled, driven by only a few signals rather than resting broadly. With entrainment, the heart still followed the breath strongly.",
+    "implication": "The resting state was narrow and focused, yet the system was still very responsive when guided.",
+    "goal": "Strong response. If the resting rhythm is this tight often, notice whether you are resting as broadly as you could.",
+    "color": "state-green",
+    "baseline": "At rest, the heart rhythm was tightly controlled, driven by only a few signals rather than resting broadly.",
+    "entrainment": "With entrainment, the heart still followed the breath strongly.",
+    "takeaway": "Strong response. If the resting rhythm is this tight often, notice whether you are resting as broadly as you could.",
+    "_cell": "narrow_strong"
+  },
+  "attentive": {
+    "state": "Attentive",
+    "physiology": "At rest, the heart rhythm was tightly controlled, driven by only a few signals. With entrainment, the heart followed the breath, but only gently.",
+    "implication": "A narrow resting state with a light response. Engaged, but not settling deeply.",
+    "goal": "If the resting rhythm is consistently this tight, consider whether you are entering sessions already keyed-up rather than relaxed.",
+    "color": "state-gray",
+    "baseline": "At rest, the heart rhythm was tightly controlled, driven by only a few signals.",
+    "entrainment": "With entrainment, the heart followed the breath, but only gently.",
+    "takeaway": "If the resting rhythm is consistently this tight, consider whether you are entering sessions already keyed-up rather than relaxed.",
+    "_cell": "narrow_weak"
+  },
+  "stuck": {
+    "state": "Stuck",
+    "physiology": "At rest, the heart rhythm was tightly controlled and rigid. With entrainment, the rhythm barely changed.",
+    "implication": "When the resting state is already locked tight, there is little room left to shift. The breath could not move a system that was already fixed.",
+    "goal": "Step back and rest. Let the resting rhythm loosen before trying again.",
+    "color": "state-burnt",
+    "baseline": "At rest, the heart rhythm was tightly controlled and rigid.",
+    "entrainment": "With entrainment, the rhythm barely changed.",
+    "takeaway": "Step back and rest. Let the resting rhythm loosen before trying again.",
+    "_cell": "narrow_none"
+  },
+  "relying_on_reserves": {
+    "state": "Relying on Reserves",
+    "physiology": "At rest, the heart rhythm was unsettled and disorganized. With entrainment, the heart still followed the breath into a strong, steady rhythm.",
+    "implication": "The resting state was rough, yet the system responded fully when guided. This is a strong response, common while recovering from a heavy stretch: the capacity is there even though things have not settled.",
+    "goal": "Encouraging, but protect recovery. The system is still doing repair work; favor rest over more load.",
+    "color": "state-yellow",
+    "baseline": "At rest, the heart rhythm was unsettled and disorganized.",
+    "entrainment": "With entrainment, the heart still followed the breath into a strong, steady rhythm.",
+    "takeaway": "Encouraging, but protect recovery. The system is still doing repair work; favor rest over more load.",
+    "_cell": "rough_strong"
+  },
+  "running_low": {
+    "state": "Running Low",
+    "physiology": "At rest, the heart rhythm was unsettled and disorganized. With entrainment, the heart began to follow but could not fully settle into the rhythm.",
+    "implication": "The system is working to respond, but limited reserves are holding it back. This is effort against a headwind, not failure.",
+    "goal": "Ease the load. A shorter session or a more comfortable pace may help.",
+    "color": "state-dark-orange",
+    "baseline": "At rest, the heart rhythm was unsettled and disorganized.",
+    "entrainment": "With entrainment, the heart began to follow but could not fully settle into the rhythm.",
+    "takeaway": "Ease the load. A shorter session or a more comfortable pace may help.",
+    "_cell": "rough_weak"
+  },
+  "running_on_fumes": {
+    "state": "Running on Fumes",
+    "physiology": "At rest, the heart rhythm was unsettled and disorganized. With entrainment, the heart did not fall into step with the breath.",
+    "implication": "Neither settled at rest nor responsive when guided. The system is running on empty right now.",
+    "goal": "Rest. Even slow breathing is a demand at the moment. Stop for now; if it persists, consider illness, stress, or fatigue.",
+    "color": "state-red",
+    "baseline": "At rest, the heart rhythm was unsettled and disorganized.",
+    "entrainment": "With entrainment, the heart did not fall into step with the breath.",
+    "takeaway": "Rest. Even slow breathing is a demand at the moment. Stop for now; if it persists, consider illness, stress, or fatigue.",
+    "_cell": "rough_none"
   },
   "tug_of_war": {
     "state": "Vagal Brake",
-    "physiology": "Strong vagal recruitment occurred ({vagal_gain}x gain), but the entrained rhythm ({e_alpha}) did not reach the coherence target. The system is stable and well-resourced, but the brake is still engaged.",
-    "implication": "High vagal tone is present but resists increasing coherence. This pattern is common upon waking, after deep recovery, or if the entrainment rate was too fast.",
-    "goal": "Allow the system time to transition. Consider waiting 10–15 minutes before repeating, or try a slower entrainment rate.",
-    "color": "state-amber"
-  },
-  "burned_out": {
-    "state": "Burned Out",
-    "physiology": "Current Snapshot: A stable baseline ({b_alpha}) deteriorated during the session ({e_alpha}), with low vagal recruitment ({vagal_gain}x gain).",
-    "implication": "Instead of relaxing, the session increased stress. You might be pushing when you need to rest.",
-    "goal": "Rest. Even breathing is a stressor right now.",
-    "color": "state-red"
+    "physiology": "At rest, the heart rhythm was its usual self. With entrainment, the heart pushed hard but the rise and fall did not line up cleanly with the breath.",
+    "implication": "There was plenty of power, but it did not organize into a smooth rhythm. Common right after waking, after deep recovery, or if the breathing pace was off.",
+    "goal": "Give it time. Wait 10-15 minutes and retry, or check that the breathing pace is slow and steady.",
+    "color": "state-amber",
+    "baseline": "At rest, the heart rhythm was its usual self.",
+    "entrainment": "With entrainment, the heart pushed hard but the rise and fall did not line up cleanly with the breath.",
+    "takeaway": "Give it time. Wait 10-15 minutes and retry, or check that the breathing pace is slow and steady.",
+    "_cell": "vagal_brake"
   },
   "surfing_the_wave": {
     "state": "Vagal Wave",
-    "physiology": "Current Snapshot: High baseline vagal tone ({b_rmssd}ms) limited the calculation of relative gain, but coherence remained high.",
-    "implication": "You started this session already feeling great, so there wasn't much room (or need) to improve your score.",
-    "goal": "Ride the wave. Your physiology is optimized. The 'Low Gain' is a data limitation, not a physiological failure.",
-    "color": "state-green"
+    "physiology": "At rest, the calming side of the nervous system was already running very high ({b_rmssd} ms). With entrainment, there was little room left to rise further.",
+    "implication": "When rest is already this deep, a small measured change does not mean a weak response. The system was simply near its ceiling to begin with.",
+    "goal": "No correction needed. Read this as abundance, not a poor result.",
+    "color": "state-green",
+    "baseline": "At rest, the calming side of the nervous system was already running very high ({b_rmssd} ms).",
+    "entrainment": "With entrainment, there was little room left to rise further.",
+    "takeaway": "No correction needed. Read this as abundance, not a poor result.",
+    "_cell": "vagal_wave"
+  },
+  "burned_out": {
+    "state": "Burned Out",
+    "physiology": "At rest, the heart rhythm started out varied and flexible. With entrainment, the rhythm became less organized rather than more.",
+    "implication": "The session was met as a stressor rather than a release. The body tightened under the effort instead of settling.",
+    "goal": "Reduce pressure. Stop for now and try a gentler approach later.",
+    "color": "state-red",
+    "baseline": "At rest, the heart rhythm started out varied and flexible.",
+    "entrainment": "With entrainment, the rhythm became less organized rather than more.",
+    "takeaway": "Reduce pressure. Stop for now and try a gentler approach later.",
+    "_cell": "stress_response"
+  },
+  "open_for_business": {
+    "state": "Open for Business",
+    "physiology": "At rest, the heart rhythm was varied and flexible, responding to many signals at once. With entrainment, the heart followed the breath into a strong, steady rise and fall.",
+    "implication": "Relaxed and ready at rest, and able to settle deeply when guided. This is the pattern you want.",
+    "goal": "Nothing to change. The system is working well.",
+    "color": "state-green",
+    "baseline": "At rest, the heart rhythm was varied and flexible, responding to many signals at once.",
+    "entrainment": "With entrainment, the heart followed the breath into a strong, steady rise and fall.",
+    "takeaway": "Nothing to change. The system is working well.",
+    "_cell": "broad_strong"
   },
   "unknown": {
     "state": "Unknown",
-    "physiology": "N/A",
+    "physiology": "",
     "implication": "N/A",
     "goal": "Check sensor connection and try again.",
-    "color": "secondary"
+    "color": "secondary",
+    "baseline": "",
+    "entrainment": "",
+    "takeaway": "Check sensor connection and try again.",
+    "_cell": "unknown_cell"
   }
 }
