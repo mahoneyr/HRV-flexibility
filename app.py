@@ -71,6 +71,171 @@ def load_state_definitions():
 load_state_definitions()
 
 # ============================================================================
+# PHASE 2: USER PROFILES (Per-user parameters stored in JSON)
+# ============================================================================
+USER_PROFILES_FILE = os.path.join(app.config['DATA_FOLDER'], 'user_profiles.json')
+USER_PROFILES = {}
+
+def load_user_profiles():
+    """Load user profiles from JSON file."""
+    global USER_PROFILES
+    if os.path.exists(USER_PROFILES_FILE):
+        try:
+            with open(USER_PROFILES_FILE, 'r') as f:
+                data = json.load(f)
+                USER_PROFILES = {u['user_id']: u for u in data.get('users', [])}
+            logger.info(f"Loaded {len(USER_PROFILES)} user profiles.")
+        except Exception as e:
+            logger.error(f"Error loading user profiles: {e}")
+    else:
+        logger.warning("user_profiles.json not found.")
+
+def save_user_profiles():
+    """Save user profiles to JSON file."""
+    try:
+        with open(USER_PROFILES_FILE, 'w') as f:
+            json.dump({'users': list(USER_PROFILES.values())}, f, indent=2)
+        logger.info(f"Saved {len(USER_PROFILES)} user profiles.")
+    except Exception as e:
+        logger.error(f"Error saving user profiles: {e}")
+
+def get_or_create_user_profile(user_id='default'):
+    """Get or create user profile with defaults."""
+    if user_id not in USER_PROFILES:
+        # Create new profile with Phase 1 constants as defaults
+        USER_PROFILES[user_id] = {
+            'user_id': user_id,
+            'session_count': 0,
+            'personalization_phase': 1,
+            'coherence_threshold_computed': COHERENCE_TIEBREAKER_DEFAULT,
+            'coherence_threshold_source': 'phase_1_default',
+            'rmssd_ceiling_computed': 40.0,
+            'rmssd_ceiling_source': 'phase_1_default',
+            'baseline_rmssd_mean': None,
+            'baseline_rmssd_sd': None,
+            'baseline_hr_mean': None,
+            'baseline_hr_sd': None,
+            'baseline_hr_source': None,
+            'thresholds_last_computed': datetime.now().isoformat() + 'Z',
+            'thresholds_computed_from_n': 0,
+            'last_session_date': None
+        }
+        save_user_profiles()
+    return USER_PROFILES[user_id]
+
+def compute_coherence_threshold_from_history(history_file, window_sessions=30):
+    """Compute 90th percentile of coherence ratio from trailing sessions."""
+    try:
+        df = pd.read_csv(history_file, skipinitialspace=True)
+        df.columns = [c.strip() for c in df.columns]
+
+        if 'Coherence_Index' not in df.columns or len(df) == 0:
+            return None
+
+        # Get trailing window of coherence values
+        coherence_vals = pd.to_numeric(df['Coherence_Index'].tail(window_sessions), errors='coerce')
+        coherence_vals = coherence_vals.dropna()
+
+        if len(coherence_vals) < 5:
+            return None
+
+        # Return 90th percentile
+        return round(np.percentile(coherence_vals, 90), 2)
+    except Exception as e:
+        logger.warning(f"Could not compute coherence threshold: {e}")
+        return None
+
+def compute_rmssd_ceiling_from_history(history_file, window_sessions=30):
+    """Compute 90th percentile of entrained RMSSD from trailing sessions."""
+    try:
+        df = pd.read_csv(history_file, skipinitialspace=True)
+        df.columns = [c.strip() for c in df.columns]
+
+        if 'Entrained_RMSSD' not in df.columns or len(df) == 0:
+            return None
+
+        # Get trailing window of entrained RMSSD values
+        rmssd_vals = pd.to_numeric(df['Entrained_RMSSD'].tail(window_sessions), errors='coerce')
+        rmssd_vals = rmssd_vals.dropna()
+
+        if len(rmssd_vals) < 5:
+            return None
+
+        # Return 90th percentile
+        return round(np.percentile(rmssd_vals, 90), 1)
+    except Exception as e:
+        logger.warning(f"Could not compute RMSSD ceiling: {e}")
+        return None
+
+def compute_baseline_norms_from_history(history_file):
+    """Compute mean and SD of baseline RMSSD and baseline HR from all sessions."""
+    try:
+        df = pd.read_csv(history_file, skipinitialspace=True)
+        df.columns = [c.strip() for c in df.columns]
+
+        results = {}
+
+        # Baseline RMSSD norms
+        if 'Baseline_RMSSD' in df.columns:
+            b_rmssd = pd.to_numeric(df['Baseline_RMSSD'], errors='coerce').dropna()
+            if len(b_rmssd) > 2:
+                results['baseline_rmssd_mean'] = round(b_rmssd.mean(), 1)
+                results['baseline_rmssd_sd'] = round(b_rmssd.std(), 1)
+
+        # Baseline HR norms
+        if 'Baseline_HR' in df.columns:
+            b_hr = pd.to_numeric(df['Baseline_HR'], errors='coerce').dropna()
+            if len(b_hr) > 2:
+                results['baseline_hr_mean'] = round(b_hr.mean(), 1)
+                results['baseline_hr_sd'] = round(b_hr.std(), 1)
+
+        return results if results else None
+    except Exception as e:
+        logger.warning(f"Could not compute baseline norms: {e}")
+        return None
+
+def update_user_profile(user_id='default'):
+    """Update user profile after new session (recompute thresholds and personal norms)."""
+    profile = get_or_create_user_profile(user_id)
+
+    # Recompute thresholds from history
+    new_coherence = compute_coherence_threshold_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
+    new_rmssd = compute_rmssd_ceiling_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
+    baseline_norms = compute_baseline_norms_from_history(HISTORY_FILE)
+
+    if new_coherence is not None:
+        profile['coherence_threshold_computed'] = new_coherence
+        profile['coherence_threshold_source'] = 'personal_rolling_90th_percentile'
+
+    if new_rmssd is not None:
+        profile['rmssd_ceiling_computed'] = new_rmssd
+        profile['rmssd_ceiling_source'] = 'personal_rolling_90th_percentile'
+
+    # Update baseline personal norms (for Tier B classifier)
+    if baseline_norms:
+        profile['baseline_rmssd_mean'] = baseline_norms.get('baseline_rmssd_mean')
+        profile['baseline_rmssd_sd'] = baseline_norms.get('baseline_rmssd_sd')
+        profile['baseline_hr_mean'] = baseline_norms.get('baseline_hr_mean')
+        profile['baseline_hr_sd'] = baseline_norms.get('baseline_hr_sd')
+        profile['baseline_hr_source'] = 'backfilled_from_raw_rr'
+
+    # Update metadata
+    session_count = len(pd.read_csv(HISTORY_FILE))
+    profile['thresholds_last_computed'] = datetime.now().isoformat() + 'Z'
+    profile['thresholds_computed_from_n'] = session_count
+    profile['last_session_date'] = datetime.now().isoformat() + 'Z'
+
+    # Auto-transition to Phase 2 at threshold
+    if profile['session_count'] >= 15 and profile['personalization_phase'] == 1:
+        profile['personalization_phase'] = 2
+        logger.info(f"User {user_id} auto-transitioned to Phase 2 (personalized mode)")
+
+    save_user_profiles()
+
+# Load profiles on startup
+load_user_profiles()
+
+# ============================================================================
 # PHASE 1: CLASSIFIER CONSTANTS (placeholder priors for proof of concept)
 # ============================================================================
 # Version tracking: what basis do these constants represent?
@@ -212,7 +377,7 @@ def compute_coherence_tiebreaker_threshold(history_file, window_sessions=None):
 # Special Override (applied first):
 #   b_rmssd > 30 + Ratio > 1.2 →  Vagal Wave    (ceiling effect)
 
-def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd):
+def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
     """
     Classifies user state using the 2x2 Response Matrix + Tier context framework.
 
@@ -221,11 +386,14 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd):
     2. Rolling ceiling (90th percentile of entrained RMSSD, trailing window)
     3. Coherence tiebreaker (strong coherence rescues near-miss gain)
 
+    PHASE 2: Per-user thresholds from user_profile (optional).
+
     Args:
         b_alpha (float): Baseline DFA Alpha-1
         e_alpha (float): Entrained DFA Alpha-1 (reported only, not used for classification)
         b_rmssd (float): Baseline RMSSD
         e_rmssd (float): Entrained RMSSD
+        user_profile (dict, optional): User profile with computed thresholds. If None, uses Phase 1 defaults.
 
     Returns:
         dict: Dictionary containing state name, physiology, implication, goal, and color.
@@ -238,13 +406,18 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd):
     vagal_gain = e_rmssd / b_rmssd  # Fold-change gain (for classifier and tiebreaker)
 
     # === FIX 2: Compute Rolling Ceiling ===
-    # Compute rolling ceiling (90th percentile of entrained RMSSD, last 30 sessions)
-    ceiling = compute_rolling_ceiling(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
+    # Use user profile's computed ceiling if available, else compute from history
+    if user_profile and user_profile.get('rmssd_ceiling_computed'):
+        ceiling = user_profile['rmssd_ceiling_computed']
+    else:
+        ceiling = compute_rolling_ceiling(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
 
     # === FIX 3 (prep): Compute Coherence Tiebreaker Threshold ===
-    # Per-user adaptive threshold: 90th percentile of coherence ratio from rolling history.
-    # Falls back to COHERENCE_TIEBREAKER_DEFAULT for cold-start users.
-    coherence_tiebreaker_threshold = compute_coherence_tiebreaker_threshold(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
+    # Use user profile's computed threshold if available, else compute from history
+    if user_profile and user_profile.get('coherence_threshold_computed'):
+        coherence_tiebreaker_threshold = user_profile['coherence_threshold_computed']
+    else:
+        coherence_tiebreaker_threshold = compute_coherence_tiebreaker_threshold(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
 
     # If insufficient history, use all-time 90th as fallback
     if ceiling is None:
@@ -819,6 +992,15 @@ def save_to_history(m, plot_file):
             m.get('baseline_hr', ''),
             m.get('baseline_mean_rr', '')
         ])
+
+    # Phase 2: Update user profile after session is saved
+    try:
+        user_profile = get_or_create_user_profile('default')
+        user_profile['session_count'] = len(pd.read_csv(HISTORY_FILE))
+        update_user_profile('default')
+        logger.info(f"Updated user profile. Session count: {user_profile['session_count']}")
+    except Exception as e:
+        logger.warning(f"Could not update user profile: {e}")
 
 def get_history():
     """Retrieve all history records from CSV."""
