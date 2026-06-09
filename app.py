@@ -449,18 +449,17 @@ class AutonomicFlexibilityAnalyzer:
 
     def plot(self, filename):
         """Generate and save the comparison plot with historical error bars."""
-        try:
-            fig, ax = plt.subplots(2, 2, figsize=(12, 10))
-            base_rr = self.get_rr_values(self.baseline_df)
-            entr_rr = self.get_rr_values(self.entrained_df)
+        fig, ax = plt.subplots(2, 2, figsize=(12, 10))
+        base_rr = self.get_rr_values(self.baseline_df)
+        entr_rr = self.get_rr_values(self.entrained_df)
 
-            # Use cleaned data for plotting too, so graph matches metrics
-            clean_b = self.preprocess_rr(base_rr)
-            clean_e = self.preprocess_rr(entr_rr)
+        # Use cleaned data for plotting too, so graph matches metrics
+        clean_b = self.preprocess_rr(base_rr)
+        clean_e = self.preprocess_rr(entr_rr)
 
-            bpm_b = 60000/clean_b if len(clean_b) > 0 else []
-            bpm_e = 60000/clean_e if len(clean_e) > 0 else []
-        
+        bpm_b = 60000/clean_b if len(clean_b) > 0 else []
+        bpm_e = 60000/clean_e if len(clean_e) > 0 else []
+
         # --- Top Left: Baseline Heart Rate ---
         ax[0,0].plot(bpm_b, color='gray', alpha=0.7)
         ax[0,0].set_title(f"Baseline Heart Rate", fontsize=12)
@@ -479,32 +478,32 @@ class AutonomicFlexibilityAnalyzer:
         # We read history, add current session, and compute stats
         hist_means = {'a_base': 0, 'a_entr': 0, 'r_base': 0, 'r_entr': 0}
         hist_stds = {'a_base': 0, 'a_entr': 0, 'r_base': 0, 'r_entr': 0}
-        
-            try:
-                # 1. Load History
-                if os.path.exists(HISTORY_FILE):
-                    df_hist = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
 
-                    # Calculate stats directly without concatenation (more efficient)
-                    cols_map = {
-                        'a_base': 'Baseline_Alpha',
-                        'a_entr': 'Entrained_Alpha',
-                        'r_base': 'Baseline_RMSSD',
-                        'r_entr': 'Entrained_RMSSD'
-                    }
+        try:
+            # 1. Load History
+            if os.path.exists(HISTORY_FILE):
+                df_hist = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
 
-                    for k, col in cols_map.items():
-                        if col in df_hist.columns:
-                            vals = pd.to_numeric(df_hist[col], errors='coerce').dropna()
-                            if len(vals) > 0:
-                                hist_means[k] = vals.mean()
-                                sd = vals.std()
-                                if pd.isna(sd): sd = 0
-                                hist_stds[k] = sd
+                # Calculate stats directly without concatenation (more efficient)
+                cols_map = {
+                    'a_base': 'Baseline_Alpha',
+                    'a_entr': 'Entrained_Alpha',
+                    'r_base': 'Baseline_RMSSD',
+                    'r_entr': 'Entrained_RMSSD'
+                }
 
-                    del df_hist  # Explicitly free memory
-            except Exception as e:
-                logger.error(f"Error calculating stats for plot: {e}")
+                for k, col in cols_map.items():
+                    if col in df_hist.columns:
+                        vals = pd.to_numeric(df_hist[col], errors='coerce').dropna()
+                        if len(vals) > 0:
+                            hist_means[k] = vals.mean()
+                            sd = vals.std()
+                            if pd.isna(sd): sd = 0
+                            hist_stds[k] = sd
+
+                del df_hist  # Explicitly free memory
+        except Exception as e:
+            logger.error(f"Error calculating stats for plot: {e}")
 
         # --- Bottom Left: ALPHA-1 Comparison (Structure) ---
         vals_alpha = [self.results['a_base'], self.results['a_entr']]
@@ -558,21 +557,18 @@ class AutonomicFlexibilityAnalyzer:
         ax[1, 1].grid(True, axis='y', linestyle='--', alpha=0.5)
         ax[1, 1].legend(loc='upper left', fontsize='small')
 
-            plt.tight_layout()
-            filepath = os.path.join(app.config['STATIC_FOLDER'], filename)
-            plt.savefig(filepath)
-            plt.close(fig)
+        plt.tight_layout()
+        filepath = os.path.join(app.config['STATIC_FOLDER'], filename)
+        plt.savefig(filepath)
+        plt.close(fig)
 
-            # Clear matplotlib caches to prevent memory accumulation
-            plt.close('all')
+        # Clear matplotlib caches to prevent memory accumulation
+        plt.close('all')
 
-            # Explicitly delete large arrays
-            del base_rr, entr_rr, clean_b, clean_e, bpm_b, bpm_e
+        # Explicitly delete large arrays
+        del base_rr, entr_rr, clean_b, clean_e, bpm_b, bpm_e
 
-            return filename
-        finally:
-            # Ensure cleanup even if error occurs
-            plt.close('all')
+        return filename
 
 def ensure_history_header():
     """Ensure history CSV file exists and has correct headers."""
