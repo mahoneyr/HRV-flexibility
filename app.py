@@ -38,11 +38,12 @@ os.makedirs(app.config['DATA_FOLDER'], exist_ok=True)
 
 # THE STANDARD COLUMNS WE EXPECT
 HISTORY_COLUMNS = [
-    'Date', 
-    'Baseline_Alpha', 'Entrained_Alpha', 'Coherence_Index', 
-    'Baseline_RMSSD', 'Entrained_RMSSD', 'Vagal_Gain', 
+    'Date',
+    'Baseline_Alpha', 'Entrained_Alpha', 'Coherence_Index',
+    'Baseline_RMSSD', 'Entrained_RMSSD', 'Vagal_Gain',
     'Entrained_Resp_Rate',
-    'Plot_File'
+    'Plot_File',
+    'Baseline_HR', 'Baseline_Mean_RR'
 ]
 
 # Initialize history file if needed
@@ -69,6 +70,134 @@ def load_state_definitions():
 # Load on startup
 load_state_definitions()
 
+# ============================================================================
+# PHASE 1: CLASSIFIER CONSTANTS (placeholder priors for proof of concept)
+# ============================================================================
+# Version tracking: what basis do these constants represent?
+THRESHOLDS_VERSION = "v1.0: placeholder priors, no population data"
+
+# HEADROOM_FLOOR_MS = 3
+# Source: engineering constraint (prevents denominator explosion when
+#   baseline RMSSD approaches or exceeds rolling ceiling).
+#   Not empirically derived; chosen to maintain numerical stability.
+#   Revisit if sessions with baseline near ceiling become common.
+HEADROOM_FLOOR_MS = 3
+
+# HEADROOM_CAP = 2.0
+# Source: round-number prior. Prevents runaway scores when denominator
+#   shrinks (e.g., baseline near ceiling). No population data.
+#   Tune as multi-user data accumulates.
+HEADROOM_CAP = 2.0
+
+# CEILING_PERCENTILE = 90
+# Source: statistical convention. Rolling 90th percentile of personal
+#   entrained RMSSD. Grounded in user's own history once window fills.
+#   No published population basis for this specific percentile.
+CEILING_PERCENTILE = 90
+
+# CEILING_WINDOW_SESSIONS = 30
+# Source: judgment call. Balances recency (captures current physiology)
+#   vs stability (enough data to compute percentile robustly).
+#   No empirical basis. May need adjustment for infrequent users.
+CEILING_WINDOW_SESSIONS = 30
+
+# COHERENCE_TIEBREAKER_DEFAULT = 2.4
+# Source: placeholder prior. NOT a population threshold.
+#   Cold-start fallback only.
+#   Used as cold-start fallback only. Will be replaced at runtime by
+#   each user's own rolling 90th percentile of coherence ratio once
+#   sufficient history exists (see compute_coherence_tiebreaker_threshold()).
+#   CRITICAL: Do not treat as universal or apply to other users.
+COHERENCE_TIEBREAKER_DEFAULT = 2.4
+
+# GAIN_THRESHOLD = 1.5
+# Source: round-number prior. No published basis for this specific
+#   value in resting paced-breathing entrainment context.
+#   Borrowed loosely from HRV fold-change conventions.
+#   HIGH PRIORITY for empirical grounding as multi-user data accumulates.
+GAIN_THRESHOLD = 1.5
+
+# GAIN_MARGIN_PCT = 0.90
+# Source: judgment call. Defines "near-miss" as gain >= threshold * 0.90
+#   (i.e., within 10% of threshold). Prevents tiebreaker from rescuing
+#   sessions with genuinely low amplitude. No empirical basis.
+GAIN_MARGIN_PCT = 0.90
+
+# COHERENCE_THRESHOLD = 1.2
+# Source: round-number prior. No published basis for resting paced-
+#   breathing context. Same caveat as GAIN_THRESHOLD.
+COHERENCE_THRESHOLD = 1.2
+
+def compute_rolling_ceiling(history_file, window_sessions=30):
+    """
+    Compute 90th percentile of Entrained_RMSSD from trailing window.
+    Returns ceiling value or None if insufficient data.
+    """
+    try:
+        if not os.path.exists(history_file):
+            return None
+
+        df = pd.read_csv(history_file, skipinitialspace=True)
+        if df.empty or len(df) < 5:
+            return None
+
+        # Get last N sessions
+        trailing = df.tail(window_sessions)
+        entrained_vals = pd.to_numeric(trailing['Entrained_RMSSD'], errors='coerce').dropna()
+
+        if len(entrained_vals) < 5:
+            return None
+
+        ceiling = np.percentile(entrained_vals, CEILING_PERCENTILE)
+        return ceiling
+    except Exception as e:
+        logger.error(f"Error computing rolling ceiling: {e}")
+        return None
+
+def compute_coherence_tiebreaker_threshold(history_file, window_sessions=None):
+    """
+    Compute 90th percentile of Coherence Ratio from trailing window.
+    Returns computed threshold or COHERENCE_TIEBREAKER_DEFAULT if insufficient data.
+
+    CRITICAL: This is a per-user adaptive threshold. It will differ for each user.
+    Only the fallback default (COHERENCE_TIEBREAKER_DEFAULT) is universal.
+    """
+    try:
+        if not os.path.exists(history_file):
+            return COHERENCE_TIEBREAKER_DEFAULT
+
+        df = pd.read_csv(history_file, skipinitialspace=True)
+        if df.empty or len(df) < 10:  # Need more data for coherence percentile
+            return COHERENCE_TIEBREAKER_DEFAULT
+
+        # Get last N sessions (use same window as ceiling for consistency)
+        if window_sessions is None:
+            window_sessions = CEILING_WINDOW_SESSIONS
+
+        trailing = df.tail(window_sessions)
+
+        # Compute coherence ratio for each session
+        b_alpha = pd.to_numeric(trailing['Baseline_Alpha'], errors='coerce').dropna()
+        e_alpha = pd.to_numeric(trailing['Entrained_Alpha'], errors='coerce').dropna()
+
+        if len(b_alpha) < 5 or len(e_alpha) < 5 or len(b_alpha) != len(e_alpha):
+            return COHERENCE_TIEBREAKER_DEFAULT
+
+        # Compute coherence ratio, handle division
+        coherence_ratios = []
+        for i in range(min(len(b_alpha), len(e_alpha))):
+            if b_alpha.iloc[i] > 0.001:  # Avoid division by zero
+                coherence_ratios.append(e_alpha.iloc[i] / b_alpha.iloc[i])
+
+        if len(coherence_ratios) < 5:
+            return COHERENCE_TIEBREAKER_DEFAULT
+
+        threshold = np.percentile(coherence_ratios, CEILING_PERCENTILE)
+        return threshold
+    except Exception as e:
+        logger.error(f"Error computing coherence tiebreaker threshold: {e}")
+        return COHERENCE_TIEBREAKER_DEFAULT
+
 # --- 12-STATE "INTEGRATION & DYNAMICS" LOGIC (v2) ---
 # Classification is based on a 2x2 response matrix (Coherence Ratio x Vagal Gain)
 # with Tier context (Baseline Alpha) modifying the meaning of each cell.
@@ -86,70 +215,112 @@ load_state_definitions()
 def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd):
     """
     Classifies user state using the 2x2 Response Matrix + Tier context framework.
-    
+
+    PHASE 1: Proof of Concept with three fixes:
+    1. Floor + cap on headroom (prevents denominator explosion)
+    2. Rolling ceiling (90th percentile of entrained RMSSD, trailing window)
+    3. Coherence tiebreaker (strong coherence rescues near-miss gain)
+
     Args:
         b_alpha (float): Baseline DFA Alpha-1
         e_alpha (float): Entrained DFA Alpha-1 (reported only, not used for classification)
         b_rmssd (float): Baseline RMSSD
         e_rmssd (float): Entrained RMSSD
-        
+
     Returns:
         dict: Dictionary containing state name, physiology, implication, goal, and color.
     """
     # Safety zeros to prevent division errors
     b_alpha = max(b_alpha, 0.001)
     b_rmssd = max(b_rmssd, 0.001)
-    
+
     coherence_ratio = e_alpha / b_alpha
-    vagal_gain = e_rmssd / b_rmssd
-    
+    vagal_gain = e_rmssd / b_rmssd  # Fold-change gain (for classifier and tiebreaker)
+
+    # === FIX 2: Compute Rolling Ceiling ===
+    # Compute rolling ceiling (90th percentile of entrained RMSSD, last 30 sessions)
+    ceiling = compute_rolling_ceiling(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
+
+    # === FIX 3 (prep): Compute Coherence Tiebreaker Threshold ===
+    # Per-user adaptive threshold: 90th percentile of coherence ratio from rolling history.
+    # Falls back to COHERENCE_TIEBREAKER_DEFAULT for cold-start users.
+    coherence_tiebreaker_threshold = compute_coherence_tiebreaker_threshold(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
+
+    # If insufficient history, use all-time 90th as fallback
+    if ceiling is None:
+        try:
+            df = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
+            if not df.empty:
+                all_entrained = pd.to_numeric(df['Entrained_RMSSD'], errors='coerce').dropna()
+                ceiling = np.percentile(all_entrained, CEILING_PERCENTILE) if len(all_entrained) > 0 else 40.0
+            else:
+                ceiling = 40.0  # placeholder cold-start default
+        except:
+            ceiling = 40.0  # placeholder cold-start default
+
+    # === FIX 1: Compute Headroom with Floor + Cap (for diagnostics, prevents denominator explosion) ===
+    denom = max(ceiling - b_rmssd, HEADROOM_FLOOR_MS)
+    headroom = min((e_rmssd - b_rmssd) / denom, HEADROOM_CAP)
+
     # Identify the key based on logic
     key = "unknown"
 
     # --- SPECIAL OVERRIDE: VAGAL WAVE ---
     # High baseline RMSSD compresses relative gain — ceiling effect, not failure.
-    if b_rmssd > 30 and coherence_ratio >= 1.2:
+    if b_rmssd > 30 and coherence_ratio >= COHERENCE_THRESHOLD:
         key = "surfing_the_wave"
 
     # --- TIER III: HIGH BASELINE (b_alpha > 1.25) ---
     elif b_alpha > 1.25:
-        if vagal_gain >= 1.5 and coherence_ratio >= 1.2:
+        if vagal_gain >= GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
             key = "laser_focus"          # Full response from high base
-        elif vagal_gain >= 1.5 and coherence_ratio < 1.2:
+        elif vagal_gain >= GAIN_THRESHOLD and coherence_ratio < COHERENCE_THRESHOLD:
             key = "tug_of_war"           # Vagal Brake — energy without structure
-        elif vagal_gain < 1.5 and coherence_ratio >= 1.2:
+        elif vagal_gain < GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
             key = "attentive"            # Structure held, no vagal recruitment
         else:
             key = "stuck"                # No response in either axis
 
     # --- TIER I: LOW BASELINE (b_alpha < 0.75) ---
     elif b_alpha < 0.75:
-        if vagal_gain >= 1.5 and coherence_ratio >= 1.2:
+        if vagal_gain >= GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
             key = "relying_on_reserves"  # Full response despite low base
-        elif vagal_gain >= 1.5 and coherence_ratio < 1.2:
+        elif vagal_gain >= GAIN_THRESHOLD and coherence_ratio < COHERENCE_THRESHOLD:
             key = "running_low"          # Vagal Brake on depleted system
-        elif vagal_gain < 1.5 and coherence_ratio >= 1.2:
+        # === FIX 3: Coherence Tiebreaker (rescue near-miss sessions) ===
+        # Coherence in top decile AND fold-change gain is near-miss (within margin of threshold)
+        elif (vagal_gain < GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD and
+              coherence_ratio >= coherence_tiebreaker_threshold and
+              vagal_gain >= (GAIN_THRESHOLD * GAIN_MARGIN_PCT)):
+            key = "relying_on_reserves"  # Rescued by strong coherence + near-miss gain
+        elif vagal_gain < GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
             key = "fragile_calm"         # Structure shifted, amplitude limited
         else:
             key = "running_on_fumes"     # No response — system is depleted
 
     # --- TIER II: AVAILABLE BASELINE (0.75 <= b_alpha <= 1.25) ---
     else:
-        if vagal_gain >= 1.5 and coherence_ratio >= 1.2:
+        if vagal_gain >= GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
             key = "feeling_the_flow"     # Full response — optimal state
-        elif vagal_gain >= 1.5 and coherence_ratio < 1.2:
+        elif vagal_gain >= GAIN_THRESHOLD and coherence_ratio < COHERENCE_THRESHOLD:
             key = "tug_of_war"           # Vagal Brake — energy without structure
-        elif vagal_gain < 1.5 and coherence_ratio >= 1.2:
+        # === FIX 3: Coherence Tiebreaker (rescue near-miss sessions) ===
+        # Coherence in top decile AND fold-change gain is near-miss (within margin of threshold)
+        elif (vagal_gain < GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD and
+              coherence_ratio >= coherence_tiebreaker_threshold and
+              vagal_gain >= (GAIN_THRESHOLD * GAIN_MARGIN_PCT)):
+            key = "feeling_the_flow"     # Rescued by strong coherence + near-miss gain
+        elif vagal_gain < GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
             key = "fragile_calm"         # Structure shifted, amplitude limited
         else:
             key = "burned_out"           # No response — system perceived stress
 
     # Retrieve data from JSON
     raw_data = STATE_DEFINITIONS.get(key, STATE_DEFINITIONS.get("unknown", {}))
-    
+
     # We copy to avoid mutating the global dictionary
     data = raw_data.copy()
-    
+
     # Format the strings with actual numbers
     fmt_args = {
         "b_alpha": f"{b_alpha:.2f}",
@@ -157,9 +328,11 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd):
         "vagal_gain": f"{vagal_gain:.2f}",
         "coherence_ratio": f"{coherence_ratio:.2f}",
         "b_rmssd": f"{b_rmssd:.1f}",
-        "e_rmssd": f"{e_rmssd:.1f}"
+        "e_rmssd": f"{e_rmssd:.1f}",
+        "headroom": f"{headroom:.2f}",
+        "ceiling": f"{ceiling:.1f}"
     }
-    
+
     try:
         if "physiology" in data:
             data["physiology"] = data["physiology"].format(**fmt_args)
@@ -172,7 +345,7 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd):
     # Ensure defaults if keys missing
     if "color" not in data: data["color"] = "secondary"
     if "state" not in data: data["state"] = "Unknown"
-    
+
     return data
 
 class AutonomicFlexibilityAnalyzer:
@@ -414,6 +587,17 @@ class AutonomicFlexibilityAnalyzer:
         
         return round(peak_freq * 60, 1)
 
+    def calculate_baseline_hr(self, baseline_rr):
+        """Calculate mean baseline heart rate from RR intervals."""
+        clean_rr = self.preprocess_rr(baseline_rr)
+        if len(clean_rr) < 5:
+            return None, None
+        mean_rr = np.mean(clean_rr)
+        if mean_rr <= 0:
+            return None, None
+        mean_hr = 60000 / mean_rr
+        return round(mean_rr, 1), round(mean_hr, 1)
+
     def run(self):
         """Execute the full analysis pipeline."""
         base_rr = self.get_rr_values(self.baseline_df)
@@ -425,6 +609,7 @@ class AutonomicFlexibilityAnalyzer:
         r_base = self.calculate_rmssd(base_rr)
         r_entr = self.calculate_rmssd(entr_rr)
         resp_rate = self.calculate_resp_rate(entr_rr)
+        baseline_mean_rr, baseline_hr = self.calculate_baseline_hr(base_rr)
 
         coherence_index = a_entr / a_base if a_base > 0 else 0
         vagal_gain = r_entr / r_base if r_base > 0 else 0
@@ -443,7 +628,9 @@ class AutonomicFlexibilityAnalyzer:
             'r_entr': round(r_entr, 1),
             'vagal_gain': round(vagal_gain, 2),
             'entrained_resp_rate': resp_rate,
-            'interp': interp
+            'interp': interp,
+            'baseline_mean_rr': baseline_mean_rr,
+            'baseline_hr': baseline_hr
         }
         return self.results
 
@@ -620,15 +807,17 @@ def save_to_history(m, plot_file):
     with open(HISTORY_FILE, 'a', newline='') as f:
         writer = csv.writer(f)
         writer.writerow([
-            date_str, 
-            m['a_base'], 
-            m['a_entr'], 
+            date_str,
+            m['a_base'],
+            m['a_entr'],
             m['coherence_index'],
-            m['r_base'], 
-            m['r_entr'], 
-            m['vagal_gain'], 
-            m.get('entrained_resp_rate', 0), # New Field
-            plot_file
+            m['r_base'],
+            m['r_entr'],
+            m['vagal_gain'],
+            m.get('entrained_resp_rate', 0),
+            plot_file,
+            m.get('baseline_hr', ''),
+            m.get('baseline_mean_rr', '')
         ])
 
 def get_history():
@@ -764,18 +953,74 @@ def process_files(f1, f2):
         if not metrics or 'coherence_index' not in metrics:
             raise ValueError("Analysis failed to generate valid metrics.")
 
+        # 4. Rename and preserve uploaded files for future reference
+        try:
+            session_date = metrics['date']
+            # Parse date: "2026-06-08 17:28:18" -> date "2026-6-8", hour 17
+            date_time_parts = session_date.split()
+            date_parts = date_time_parts[0].split('-')
+            if len(date_parts) == 3:
+                year, month, day = date_parts
+                date_str = f"{year}-{int(month)}-{int(day)}"
+            else:
+                date_str = session_date.split()[0]
+
+            # Extract hour and minute, convert to time hint (8a, 10a15, 5p30, etc.)
+            time_hint = ''
+            if len(date_time_parts) > 1:
+                try:
+                    time_parts = date_time_parts[1].split(':')
+                    hour = int(time_parts[0])
+                    minute = int(time_parts[1]) if len(time_parts) > 1 else 0
+
+                    # Convert to 12-hour format with am/pm
+                    if hour == 0:
+                        hour_12 = 12
+                        ampm = 'a'
+                    elif hour < 12:
+                        hour_12 = hour
+                        ampm = 'a'
+                    elif hour == 12:
+                        hour_12 = 12
+                        ampm = 'p'
+                    else:
+                        hour_12 = hour - 12
+                        ampm = 'p'
+
+                    # Only add minutes if non-zero
+                    if minute > 0:
+                        time_hint = f'{hour_12}{ampm}{minute:02d}'
+                    else:
+                        time_hint = f'{hour_12}{ampm}'
+                except:
+                    pass
+
+            # Rename files with time hint: 2026-6-8_RR_baseline 5p.csv
+            suffix = f" {time_hint}" if time_hint else ""
+            new_p1 = os.path.join(app.config['UPLOAD_FOLDER'], f"{date_str}_RR_baseline{suffix}.csv")
+            new_p2 = os.path.join(app.config['UPLOAD_FOLDER'], f"{date_str}_RR_entrained{suffix}.csv")
+
+            if os.path.exists(p1):
+                os.rename(p1, new_p1)
+                logger.info(f"Saved baseline RR file: {new_p1}")
+            if os.path.exists(p2):
+                os.rename(p2, new_p2)
+                logger.info(f"Saved entrained RR file: {new_p2}")
+        except Exception as e:
+            logger.warning(f"Could not rename/preserve RR files: {e}")
+            # Don't fail the whole process if file preservation fails
+
         return metrics, analyzer
     except Exception as e:
         logger.error(f"Error during analysis: {e}")
-        return None, None
-    finally:
-        # Clean up uploaded files regardless of outcome
+        # Clean up temp files on error
         for path in (p1, p2):
             try:
                 if os.path.exists(path):
                     os.remove(path)
-            except Exception as e:
-                logger.warning(f"Could not remove uploaded file {path}: {e}")
+            except:
+                pass
+        return None, None
 
 @app.route('/', methods=['GET', 'POST'])
 def index():

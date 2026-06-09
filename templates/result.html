@@ -249,7 +249,8 @@
                             <tr>
                                 <th>Date</th>
                                 <th class="text-secondary">Base α1</th>
-                                <th class="text-secondary border-end">Base RMSSD</th>
+                                <th class="text-secondary">Base RMSSD</th>
+                                <th class="text-secondary border-end">Base HR</th>
                                 <th style="color: #007acc;">Entr α1</th>
                                 <th style="color: #ff7f0e;" class="border-end">Entr RMSSD</th>
                                 <th>Entr Rate</th>
@@ -263,7 +264,8 @@
                             <tr class="text-{{ row.color }}">
                                 <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Date }}</td>
                                 <td onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Baseline_Alpha }}</td>
-                                <td class="border-end" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Baseline_RMSSD }}</td>
+                                <td onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Baseline_RMSSD }}</td>
+                                <td class="border-end" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Baseline_HR if row.Baseline_HR else '-' }}</td>
                                 <td onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_Alpha }}</td>
                                 <td class="border-end" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_RMSSD }}</td>
                                 <td class="fw-bold" style="color: #555;" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_Resp_Rate }}</td>
