@@ -126,11 +126,16 @@ def get_or_create_user_profile(user_id='default'):
         save_user_profiles()
     return USER_PROFILES[user_id]
 
-def compute_coherence_threshold_from_history(history_file, window_sessions=30):
-    """Compute 90th percentile of coherence ratio from trailing sessions."""
+def compute_coherence_threshold_from_history(history_file, window_sessions=30, df=None):
+    """Compute 90th percentile of coherence ratio from trailing sessions.
+
+    Accepts an optional preloaded DataFrame (df) to avoid re-reading the CSV
+    when several threshold computations run back-to-back.
+    """
     try:
-        df = pd.read_csv(history_file, skipinitialspace=True)
-        df.columns = [c.strip() for c in df.columns]
+        if df is None:
+            df = pd.read_csv(history_file, skipinitialspace=True)
+            df.columns = [c.strip() for c in df.columns]
 
         if 'Coherence_Index' not in df.columns or len(df) == 0:
             return None
@@ -148,11 +153,15 @@ def compute_coherence_threshold_from_history(history_file, window_sessions=30):
         logger.warning(f"Could not compute coherence threshold: {e}")
         return None
 
-def compute_rmssd_ceiling_from_history(history_file, window_sessions=30):
-    """Compute 90th percentile of entrained RMSSD from trailing sessions."""
+def compute_rmssd_ceiling_from_history(history_file, window_sessions=30, df=None):
+    """Compute 90th percentile of entrained RMSSD from trailing sessions.
+
+    Accepts an optional preloaded DataFrame (df) to avoid re-reading the CSV.
+    """
     try:
-        df = pd.read_csv(history_file, skipinitialspace=True)
-        df.columns = [c.strip() for c in df.columns]
+        if df is None:
+            df = pd.read_csv(history_file, skipinitialspace=True)
+            df.columns = [c.strip() for c in df.columns]
 
         if 'Entrained_RMSSD' not in df.columns or len(df) == 0:
             return None
@@ -170,11 +179,15 @@ def compute_rmssd_ceiling_from_history(history_file, window_sessions=30):
         logger.warning(f"Could not compute RMSSD ceiling: {e}")
         return None
 
-def compute_baseline_norms_from_history(history_file):
-    """Compute mean and SD of baseline RMSSD and baseline HR from all sessions."""
+def compute_baseline_norms_from_history(history_file, df=None):
+    """Compute mean and SD of baseline RMSSD and baseline HR from all sessions.
+
+    Accepts an optional preloaded DataFrame (df) to avoid re-reading the CSV.
+    """
     try:
-        df = pd.read_csv(history_file, skipinitialspace=True)
-        df.columns = [c.strip() for c in df.columns]
+        if df is None:
+            df = pd.read_csv(history_file, skipinitialspace=True)
+            df.columns = [c.strip() for c in df.columns]
 
         results = {}
 
@@ -201,10 +214,19 @@ def update_user_profile(user_id='default'):
     """Update user profile after new session (recompute thresholds and personal norms)."""
     profile = get_or_create_user_profile(user_id)
 
+    # Load history once and reuse it for every threshold computation below,
+    # instead of each helper re-reading and re-parsing the same CSV.
+    hist_df = None
+    try:
+        hist_df = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
+        hist_df.columns = [c.strip() for c in hist_df.columns]
+    except Exception as e:
+        logger.warning(f"Could not load history for profile update: {e}")
+
     # Recompute thresholds from history
-    new_coherence = compute_coherence_threshold_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
-    new_rmssd = compute_rmssd_ceiling_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
-    baseline_norms = compute_baseline_norms_from_history(HISTORY_FILE)
+    new_coherence = compute_coherence_threshold_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS, df=hist_df)
+    new_rmssd = compute_rmssd_ceiling_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS, df=hist_df)
+    baseline_norms = compute_baseline_norms_from_history(HISTORY_FILE, df=hist_df)
 
     if new_coherence is not None:
         profile['coherence_threshold_computed'] = new_coherence
@@ -223,7 +245,7 @@ def update_user_profile(user_id='default'):
         profile['baseline_hr_source'] = 'backfilled_from_raw_rr'
 
     # Update metadata
-    session_count = len(pd.read_csv(HISTORY_FILE))
+    session_count = len(hist_df) if hist_df is not None else 0
     profile['thresholds_last_computed'] = datetime.now().isoformat() + 'Z'
     profile['thresholds_computed_from_n'] = session_count
     profile['last_session_date'] = datetime.now().isoformat() + 'Z'
@@ -431,7 +453,7 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
                 ceiling = np.percentile(all_entrained, CEILING_PERCENTILE) if len(all_entrained) > 0 else 41.1
             else:
                 ceiling = 41.1  # User's personal 90th percentile
-        except:
+        except Exception:
             ceiling = 41.1  # User's personal 90th percentile (hardcoded fallback for Phase 1)
 
     # === FIX 1: Compute Headroom with Floor + Cap (for diagnostics, prevents denominator explosion) ===
@@ -1048,20 +1070,26 @@ def get_history():
         records = df.to_dict('records')
         del df
 
+        # Load the user profile once. Passing it into get_interpretation() lets
+        # every row reuse the profile's precomputed ceiling/coherence thresholds
+        # instead of re-reading and re-percentiling the history CSV per record
+        # (previously ~2 CSV parses per row on every page load).
+        profile = get_or_create_user_profile('default')
+
         for r in records:
             try:
                 a_base = float(r.get('Baseline_Alpha', 0))
                 a_entr = float(r.get('Entrained_Alpha', 0))
                 r_base = float(r.get('Baseline_RMSSD', 0))
                 r_entr = float(r.get('Entrained_RMSSD', 0))
-            except:
+            except (ValueError, TypeError):
                 a_base, a_entr, r_base, r_entr = 0, 0, 0, 0
 
             # Ensure resp rate exists for older records
             if 'Entrained_Resp_Rate' not in r or pd.isna(r['Entrained_Resp_Rate']):
                 r['Entrained_Resp_Rate'] = '-'
 
-            interp = get_interpretation(a_base, a_entr, r_base, r_entr)
+            interp = get_interpretation(a_base, a_entr, r_base, r_entr, user_profile=profile)
             r['color'] = interp['color']
             r['state'] = interp['state']
             r['goal'] = interp['goal']
@@ -1118,9 +1146,11 @@ def process_files(f1, f2):
     Returns:
         tuple: (metrics dict, analyzer instance) or (None, None) if error.
     """
-    # Secure filenames
-    filename1 = secure_filename(f1.filename)
-    filename2 = secure_filename(f2.filename)
+    # Secure filenames. secure_filename() can return '' for names made up
+    # entirely of unsafe characters; fall back to a unique name so the two
+    # uploads never collide on an empty path.
+    filename1 = secure_filename(f1.filename) or f"baseline_{uuid.uuid4().hex}.csv"
+    filename2 = secure_filename(f2.filename) or f"entrained_{uuid.uuid4().hex}.csv"
     
     p1 = os.path.join(app.config['UPLOAD_FOLDER'], filename1)
     p2 = os.path.join(app.config['UPLOAD_FOLDER'], filename2)
@@ -1193,7 +1223,7 @@ def process_files(f1, f2):
                         time_hint = f'{hour_12}{ampm}{minute:02d}'
                     else:
                         time_hint = f'{hour_12}{ampm}'
-                except:
+                except (ValueError, IndexError):
                     pass
 
             # Rename files with time hint: 2026-6-8_RR_baseline 5p.csv
@@ -1219,7 +1249,7 @@ def process_files(f1, f2):
             try:
                 if os.path.exists(path):
                     os.remove(path)
-            except:
+            except OSError:
                 pass
         return None, None
 
@@ -1281,7 +1311,7 @@ def view_session():
 
     def to_num(val):
         try: return float(val)
-        except: return 0
+        except (ValueError, TypeError): return 0
 
     metrics = {
         'date': target['Date'],
@@ -1295,10 +1325,11 @@ def view_session():
     }
     
     metrics['interp'] = get_interpretation(
-        metrics['a_base'], 
-        metrics['a_entr'], 
+        metrics['a_base'],
+        metrics['a_entr'],
         metrics['r_base'],
-        metrics['r_entr']
+        metrics['r_entr'],
+        user_profile=get_or_create_user_profile('default')
     )
     
     plot_file = target.get('Plot_File')
