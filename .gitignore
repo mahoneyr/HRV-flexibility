@@ -1,1 +1,20 @@
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Runtime-generated data (persisted via Docker volume, not source)
+uploads/
+static/
+data/history.csv
+data/user_profiles.json
+
+# Editor / OS
+*.swp
+.idea/
+.vscode/
