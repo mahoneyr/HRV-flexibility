@@ -227,6 +227,7 @@ def update_user_profile(user_id='default'):
     new_coherence = compute_coherence_threshold_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS, df=hist_df)
     new_rmssd = compute_rmssd_ceiling_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS, df=hist_df)
     baseline_norms = compute_baseline_norms_from_history(HISTORY_FILE, df=hist_df)
+    floor_mean, floor_sd = compute_baseline_rmssd_stats(HISTORY_FILE, CEILING_WINDOW_SESSIONS, df=hist_df)
 
     if new_coherence is not None:
         profile['coherence_threshold_computed'] = new_coherence
@@ -236,16 +237,25 @@ def update_user_profile(user_id='default'):
         profile['rmssd_ceiling_computed'] = new_rmssd
         profile['rmssd_ceiling_source'] = 'personal_rolling_90th_percentile'
 
-    # Update baseline personal norms (for Tier B classifier)
+    # Depleted-floor stats: stored from the TRAILING window (same recency logic
+    # as the rolling ceiling) with a >=5-session minimum, so the override can
+    # never arm off 2-3 noisy points. Reset to None when history drops below
+    # the minimum (e.g. after deletions) so the override disarms cleanly.
+    profile['baseline_rmssd_mean'] = round(floor_mean, 1) if floor_mean is not None else None
+    profile['baseline_rmssd_sd'] = round(floor_sd, 1) if floor_sd is not None else None
+
+    # Update baseline HR personal norms (for Tier B classifier)
     if baseline_norms:
-        profile['baseline_rmssd_mean'] = baseline_norms.get('baseline_rmssd_mean')
-        profile['baseline_rmssd_sd'] = baseline_norms.get('baseline_rmssd_sd')
         profile['baseline_hr_mean'] = baseline_norms.get('baseline_hr_mean')
         profile['baseline_hr_sd'] = baseline_norms.get('baseline_hr_sd')
         profile['baseline_hr_source'] = 'backfilled_from_raw_rr'
 
     # Update metadata
     session_count = len(hist_df) if hist_df is not None else 0
+    if hist_df is not None:
+        # Only overwrite when history actually loaded, so a transient read
+        # failure can't reset a real count to 0.
+        profile['session_count'] = session_count
     profile['thresholds_last_computed'] = datetime.now().isoformat() + 'Z'
     profile['thresholds_computed_from_n'] = session_count
     profile['last_session_date'] = datetime.now().isoformat() + 'Z'
@@ -284,6 +294,23 @@ HEADROOM_CAP = 2.0
 #   entrained RMSSD. Grounded in user's own history once window fills.
 #   No published population basis for this specific percentile.
 CEILING_PERCENTILE = 90
+
+# FLOOR_Z_THRESHOLD = -2.0
+# Source: statistical convention. The depleted-floor override fires when a
+#   session's BASELINE RMSSD sits this many standard deviations (or more)
+#   BELOW the user's own mean baseline RMSSD — i.e., a severe personal
+#   departure, not merely the low end of a healthy spread.
+#   Why z-score, not a percentile: a percentile floor (e.g. 10th) fires on a
+#   FIXED fraction of every user's sessions by construction, flagging ~10%
+#   even of a perfectly healthy person. A z-score fires only on genuine
+#   departures, so a stable user may go long stretches without ever tripping
+#   it. Why not a hardcoded ms value: an absolute floor misclassifies anyone
+#   whose normal resting RMSSD differs from the reference person.
+#   -2.0 chosen (vs -1.5) to trap only SEVERE departures, since the override
+#   promotes to a red "Running on Fumes" state. Cold-start safe: mean/SD are
+#   not computed until history exists, so the override simply does not fire
+#   for new users.
+FLOOR_Z_THRESHOLD = -2.0
 
 # CEILING_WINDOW_SESSIONS = 30
 # Source: judgment call. Balances recency (captures current physiology)
@@ -343,6 +370,45 @@ def compute_rolling_ceiling(history_file, window_sessions=30):
     except Exception as e:
         logger.error(f"Error computing rolling ceiling: {e}")
         return None
+
+def compute_baseline_rmssd_stats(history_file, window_sessions=30, df=None):
+    """
+    Compute (mean, sd) of Baseline_RMSSD from the trailing window.
+    Returns (mean, sd) or (None, None) if insufficient data.
+
+    Used by the depleted-floor override, which fires when a session's baseline
+    RMSSD sits FLOOR_Z_THRESHOLD SDs (or more) below this personal mean — a
+    severe departure FOR THIS USER, not a fixed fraction of sessions and not an
+    absolute cutoff. Returns (None, None) when history is thin, so the override
+    is disabled for new users rather than guessing.
+
+    Accepts an optional preloaded DataFrame (df) to avoid re-reading the CSV.
+    The df must be in file (chronological) order so tail() is the recent window.
+    """
+    try:
+        if df is None:
+            if not os.path.exists(history_file):
+                return None, None
+            df = pd.read_csv(history_file, skipinitialspace=True)
+            df.columns = [c.strip() for c in df.columns]
+
+        if df.empty or len(df) < 5 or 'Baseline_RMSSD' not in df.columns:
+            return None, None
+
+        trailing = df.tail(window_sessions)
+        baseline_vals = pd.to_numeric(trailing['Baseline_RMSSD'], errors='coerce').dropna()
+
+        if len(baseline_vals) < 5:
+            return None, None
+
+        mean = baseline_vals.mean()
+        sd = baseline_vals.std()  # sample SD (ddof=1)
+        if pd.isna(sd) or sd <= 0:
+            return None, None
+        return mean, sd
+    except Exception as e:
+        logger.error(f"Error computing baseline RMSSD stats: {e}")
+        return None, None
 
 def compute_coherence_tiebreaker_threshold(history_file, window_sessions=None):
     """
@@ -437,6 +503,15 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
     else:
         ceiling = compute_rolling_ceiling(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
 
+    # === Compute Baseline-RMSSD Departure Stats (personal mean & SD) ===
+    # Prefer the profile's stored norms; else compute from history. Stay (None,
+    # None) when history is thin — the depleted-floor override then does not fire.
+    if user_profile and user_profile.get('baseline_rmssd_mean') and user_profile.get('baseline_rmssd_sd'):
+        b_rmssd_mean = user_profile['baseline_rmssd_mean']
+        b_rmssd_sd = user_profile['baseline_rmssd_sd']
+    else:
+        b_rmssd_mean, b_rmssd_sd = compute_baseline_rmssd_stats(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
+
     # === FIX 3 (prep): Compute Coherence Tiebreaker Threshold ===
     # Use user profile's computed threshold if available, else compute from history
     if user_profile and user_profile.get('coherence_threshold_computed'):
@@ -463,9 +538,25 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
     # Identify the key based on logic
     key = "unknown"
 
+    # --- SPECIAL OVERRIDE: DEPLETED FLOOR (checked first) ---
+    # Fires when today's baseline RMSSD is a SEVERE departure below the user's
+    # own mean (z <= FLOOR_Z_THRESHOLD, i.e. -2.0 SD). At such a low resting
+    # floor the gain ratio's denominator is tiny, so even a modest absolute
+    # rise yields a large relative gain — the ratios stop being trustworthy and
+    # can mask genuine depletion. We surface that honestly rather than award a
+    # green state. Fully relative (z-score in the user's own units), so it
+    # generalizes across people and never fires on a fixed fraction of sessions.
+    # Disabled at cold start (mean/SD are None until enough history exists).
+    if (b_rmssd_mean is not None and b_rmssd_sd is not None and b_rmssd_sd > 0
+            and (b_rmssd - b_rmssd_mean) / b_rmssd_sd <= FLOOR_Z_THRESHOLD):
+        key = "running_on_fumes"
+
     # --- SPECIAL OVERRIDE: VAGAL WAVE ---
-    # High baseline RMSSD compresses relative gain — ceiling effect, not failure.
-    if b_rmssd > 30 and coherence_ratio >= COHERENCE_THRESHOLD:
+    # Baseline RMSSD near the top of this user's own range compresses relative
+    # gain — a ceiling effect, not a failure. Uses the personal rolling ceiling
+    # (90th percentile) rather than a hardcoded 30 ms so it generalizes across
+    # users. Falls back to the ceiling value resolved above when no profile.
+    elif b_rmssd >= ceiling and coherence_ratio >= COHERENCE_THRESHOLD:
         key = "surfing_the_wave"
 
     # --- TIER III: HIGH BASELINE (b_alpha > 1.25) ---
@@ -812,7 +903,10 @@ class AutonomicFlexibilityAnalyzer:
         coherence_index = a_entr / a_base if a_base > 0 else 0
         vagal_gain = r_entr / r_base if r_base > 0 else 0
 
-        interp = get_interpretation(a_base, a_entr, r_base, r_entr)
+        # Pass the profile so classification uses its precomputed thresholds
+        # (no CSV re-reads) and matches what view_session/get_history display.
+        interp = get_interpretation(a_base, a_entr, r_base, r_entr,
+                                    user_profile=get_or_create_user_profile('default'))
 
         # Explicitly free large numpy arrays
         del base_rr, entr_rr
@@ -831,6 +925,92 @@ class AutonomicFlexibilityAnalyzer:
             'baseline_hr': baseline_hr
         }
         return self.results
+
+    @staticmethod
+    def _zscore_color_directional(z):
+        """
+        Map a z-score to an RGB color for DIRECTIONAL metrics (RMSSD, coherence,
+        gain), where higher is generally better.
+          z = 0  -> green  (your normal)
+          z < 0  -> amber -> red   (increasingly low FOR YOU)
+          z > 0  -> teal  -> blue  (increasingly high FOR YOU)
+        Saturates beyond +/-2 SD. Continuous: no thresholds, just interpretation.
+        """
+        zc = max(-2.0, min(2.0, z))
+        if zc >= 0:
+            t = zc / 2.0
+            r = 0.20 + (0.10 - 0.20) * t
+            g = 0.65 + (0.45 - 0.65) * t
+            b = 0.32 + (0.82 - 0.32) * t
+        else:
+            t = -zc / 2.0
+            r = 0.20 + (0.82 - 0.20) * t
+            g = 0.65 + (0.18 - 0.65) * t
+            b = 0.32 + (0.15 - 0.32) * t
+        return (r, g, b)
+
+    @staticmethod
+    def _alpha_color_band_centered(alpha_val):
+        """
+        Map a baseline-Alpha value to color for the BAND-CENTERED metric, where
+        BOTH extremes are departures (low = depletion, high = rigidity) and the
+        Available zone (0.75-1.25) is the desirable middle.
+          inside 0.75-1.25 -> green
+          below 0.75       -> amber -> red    (depletion)
+          above 1.25       -> muted violet    (rigidity)
+        Distinct high-end hue so users don't read 'high Alpha' as 'good like high RMSSD'.
+        """
+        lo, hi = 0.75, 1.25
+        if lo <= alpha_val <= hi:
+            return (0.20, 0.65, 0.32)
+        elif alpha_val < lo:
+            t = min((lo - alpha_val) / lo, 1.0)
+            r = 0.20 + (0.82 - 0.20) * t
+            g = 0.65 + (0.30 - 0.65) * t
+            b = 0.32 + (0.15 - 0.32) * t
+            return (r, g, b)
+        else:
+            t = min((alpha_val - hi) / hi, 1.0)
+            r = 0.20 + (0.55 - 0.20) * t
+            g = 0.65 + (0.25 - 0.65) * t
+            b = 0.32 + (0.70 - 0.32) * t
+            return (r, g, b)
+
+    def _draw_zscore_gradient(self, ax, x_center, y_max, mean, sd, width=0.5, n=256):
+        """
+        Paint a continuous vertical z-score gradient behind a directional bar.
+        Green at the personal mean, fading to red below and blue above by +/-2 SD.
+        Skipped (no-op) when sd is missing/zero — e.g. cold start — so the panel
+        simply shows the bar with no misleading color field.
+        """
+        if not sd or sd <= 0:
+            return
+        ys = np.linspace(0, y_max, n)
+        zs = (ys - mean) / sd
+        colors = np.array([self._zscore_color_directional(z) for z in zs])
+        grad = colors.reshape(n, 1, 3)
+        ax.imshow(grad, extent=[x_center - width / 2, x_center + width / 2, 0, y_max],
+                  origin='lower', aspect='auto', alpha=0.28, zorder=0)
+
+    # Cache for the alpha gradient: it depends only on (y_max, n), both fixed
+    # in practice, so build it once instead of 256 color calls per plot.
+    _alpha_grad_cache = {}
+
+    def _draw_alpha_gradient(self, ax, x_center, y_max, width=0.5, n=256):
+        """
+        Paint the band-centered Alpha gradient behind a baseline-Alpha bar:
+        green through the Available zone, cautionary toward both tails.
+        Uses fixed physiological zones (not personal stats), so it always renders.
+        """
+        key = (y_max, n)
+        grad = self._alpha_grad_cache.get(key)
+        if grad is None:
+            ys = np.linspace(0, y_max, n)
+            colors = np.array([self._alpha_color_band_centered(v) for v in ys])
+            grad = colors.reshape(n, 1, 3)
+            self._alpha_grad_cache[key] = grad
+        ax.imshow(grad, extent=[x_center - width / 2, x_center + width / 2, 0, y_max],
+                  origin='lower', aspect='auto', alpha=0.28, zorder=0)
 
     def plot(self, filename):
         """Generate and save the comparison plot with historical error bars."""
@@ -892,54 +1072,67 @@ class AutonomicFlexibilityAnalyzer:
 
         # --- Bottom Left: ALPHA-1 Comparison (Structure) ---
         vals_alpha = [self.results['a_base'], self.results['a_entr']]
-        colors_alpha = ['gray', '#007acc'] 
-        
-        # Plot Bars
-        bars1 = ax[1, 0].bar(x_pos, vals_alpha, color=colors_alpha, width=0.5)
-        ax[1, 0].bar_label(bars1, fmt='%.2f', padding=3, fontsize=12, fontweight='bold')
-        
-        # Plot Error Bars (Offset to the right)
+        alpha_ymax = 2.0
         error_offset = 0.3
-        ax[1, 0].errorbar(x_pos + error_offset, [hist_means['a_base'], hist_means['a_entr']], 
+
+        # Z-score gradient background (continuous interpretation, no thresholds):
+        #  - Baseline Alpha is BAND-CENTERED: green in the Available zone (0.75-1.25),
+        #    fading to caution at both tails (depletion low, rigidity high).
+        #  - Entrained Alpha is DIRECTIONAL vs the user's own entrained history:
+        #    green at their mean, red below, blue above.
+        self._draw_alpha_gradient(ax[1, 0], x_pos[0], alpha_ymax, width=0.5)
+        self._draw_zscore_gradient(ax[1, 0], x_pos[1], alpha_ymax,
+                                   hist_means['a_entr'], hist_stds['a_entr'], width=0.5)
+
+        # Plot Bars (semi-transparent so the gradient reads through)
+        bars1 = ax[1, 0].bar(x_pos, vals_alpha, color=['#555555', '#1f4e79'],
+                             width=0.5, alpha=0.55, zorder=2)
+        ax[1, 0].bar_label(bars1, fmt='%.2f', padding=3, fontsize=12, fontweight='bold')
+
+        # Plot personal mean markers (Mean ± 1 SD) on top
+        ax[1, 0].errorbar(x_pos + error_offset, [hist_means['a_base'], hist_means['a_entr']],
                           yerr=[hist_stds['a_base'], hist_stds['a_entr']],
                           fmt='o', color='black', capsize=8, linewidth=1.5,
-                          label='Avg ± 1 SD (History)', zorder=10)
+                          label='Your Avg ± 1 SD', zorder=10)
 
-        # Set X-Ticks
         ax[1, 0].set_xticks(x_pos)
         ax[1, 0].set_xticklabels(cats)
-
-        ax[1, 0].axhspan(0.75, 1.25, color='gray', alpha=0.1, label='Resting Norm', zorder=0)
-        ax[1, 0].axhspan(1.35, 1.6, color='#007acc', alpha=0.1, label='Coherence Target', zorder=0)
-        ax[1, 0].set_ylim(0, 2.0)
+        ax[1, 0].set_ylim(0, alpha_ymax)
         ax[1, 0].set_title("Coherence (Alpha-1)", fontsize=14, fontweight='bold', pad=15)
         ax[1, 0].set_ylabel("DFA Alpha-1")
-        ax[1, 0].grid(True, axis='y', linestyle='--', alpha=0.5)
+        ax[1, 0].grid(True, axis='y', linestyle='--', alpha=0.3)
         ax[1, 0].legend(loc='upper left', fontsize='small')
 
         # --- Bottom Right: RMSSD Comparison (Volume) ---
         vals_rmssd = [self.results['r_base'], self.results['r_entr']]
-        colors_rmssd = ['gray', '#ff7f0e'] 
-        
-        # Plot Bars
-        bars2 = ax[1, 1].bar(x_pos, vals_rmssd, color=colors_rmssd, width=0.5)
+        max_r = max(vals_rmssd) if vals_rmssd else 50
+        rmssd_ymax = max_r * 1.3
+
+        # Both RMSSD bars are DIRECTIONAL (higher generally better), each scored
+        # against its own history: baseline vs baseline mean, entrained vs entrained
+        # mean. Green at the personal mean, red below, blue above (±2 SD saturating).
+        self._draw_zscore_gradient(ax[1, 1], x_pos[0], rmssd_ymax,
+                                   hist_means['r_base'], hist_stds['r_base'], width=0.5)
+        self._draw_zscore_gradient(ax[1, 1], x_pos[1], rmssd_ymax,
+                                   hist_means['r_entr'], hist_stds['r_entr'], width=0.5)
+
+        # Plot Bars (semi-transparent so the gradient reads through)
+        bars2 = ax[1, 1].bar(x_pos, vals_rmssd, color=['#555555', '#b5651d'],
+                             width=0.5, alpha=0.55, zorder=2)
         ax[1, 1].bar_label(bars2, fmt='%.1f', padding=3, fontsize=12, fontweight='bold')
-        
-        # Plot Error Bars (Offset to the right)
+
+        # Plot personal mean markers (Mean ± 1 SD) on top
         ax[1, 1].errorbar(x_pos + error_offset, [hist_means['r_base'], hist_means['r_entr']],
                           yerr=[hist_stds['r_base'], hist_stds['r_entr']],
                           fmt='o', color='black', capsize=8, linewidth=1.5,
-                          label='Avg ± 1 SD (History)', zorder=10)
+                          label='Your Avg ± 1 SD', zorder=10)
 
-        # Set X-Ticks
         ax[1, 1].set_xticks(x_pos)
         ax[1, 1].set_xticklabels(cats)
-
-        max_r = max(vals_rmssd) if vals_rmssd else 50
-        ax[1, 1].set_ylim(0, max_r * 1.3)
+        ax[1, 1].set_ylim(0, rmssd_ymax)
         ax[1, 1].set_title("Vagal Gain (RMSSD)", fontsize=14, fontweight='bold', pad=15)
         ax[1, 1].set_ylabel("RMSSD (ms)")
-        ax[1, 1].grid(True, axis='y', linestyle='--', alpha=0.5)
+        ax[1, 1].grid(True, axis='y', linestyle='--', alpha=0.3)
         ax[1, 1].legend(loc='upper left', fontsize='small')
 
         plt.tight_layout()
@@ -983,24 +1176,19 @@ def save_to_history(m, plot_file):
     """Save analysis metrics to history CSV."""
     ensure_history_header()
     date_str = str(m['date']).strip()
-    existing_dates = set()
-    
+
+    # Duplicate check + removal in a single CSV read (was two).
     if os.path.exists(HISTORY_FILE):
         try:
             df = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
             if 'Date' in df.columns:
-                existing_dates = set(df['Date'].astype(str).str.strip().values)
+                dates = df['Date'].astype(str).str.strip()
+                if (dates == date_str).any():
+                    df[dates != date_str].to_csv(HISTORY_FILE, index=False)
+                    logger.info(f"Updated entry for: {date_str}")
+            del df
         except Exception as e:
-            logger.error(f"Error reading history for duplicate check: {e}")
-
-    if date_str in existing_dates:
-        try:
-            df = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
-            df = df[df['Date'].astype(str).str.strip() != date_str]
-            df.to_csv(HISTORY_FILE, index=False)
-            logger.info(f"Updated entry for: {date_str}")
-        except Exception as e:
-            logger.error(f"Error removing duplicate history entry: {e}")
+            logger.error(f"Error checking/removing duplicate history entry: {e}")
 
     with open(HISTORY_FILE, 'a', newline='') as f:
         writer = csv.writer(f)
@@ -1018,12 +1206,12 @@ def save_to_history(m, plot_file):
             m.get('baseline_mean_rr', '')
         ])
 
-    # Phase 2: Update user profile after session is saved
+    # Phase 2: Update user profile after session is saved.
+    # session_count is set inside update_user_profile() from the history
+    # DataFrame it already loads, so no extra CSV read is needed here.
     try:
-        user_profile = get_or_create_user_profile('default')
-        user_profile['session_count'] = len(pd.read_csv(HISTORY_FILE))
         update_user_profile('default')
-        logger.info(f"Updated user profile. Session count: {user_profile['session_count']}")
+        logger.info("Updated user profile after session save.")
     except Exception as e:
         logger.warning(f"Could not update user profile: {e}")
 
@@ -1062,6 +1250,24 @@ def get_history():
             _history_cache['mtime'] = current_mtime
             return []
 
+        # Load the user profile once. Passing it into get_interpretation() lets
+        # every row reuse the profile's precomputed ceiling/coherence thresholds
+        # instead of re-reading and re-percentiling the history CSV per record
+        # (previously ~2 CSV parses per row on every page load).
+        profile = get_or_create_user_profile('default')
+
+        # Resolve depleted-floor stats once for ALL rows. If the stored profile
+        # lacks them (e.g. stale user_profiles.json from before these fields
+        # existed), compute from the already-loaded df here rather than letting
+        # get_interpretation() re-read the CSV once per row. Must run before
+        # the descending date sort so tail() still means "most recent".
+        if not (profile.get('baseline_rmssd_mean') and profile.get('baseline_rmssd_sd')):
+            f_mean, f_sd = compute_baseline_rmssd_stats(HISTORY_FILE, CEILING_WINDOW_SESSIONS, df=df)
+            if f_mean is not None:
+                profile = dict(profile)  # copy: don't mutate the saved profile
+                profile['baseline_rmssd_mean'] = f_mean
+                profile['baseline_rmssd_sd'] = f_sd
+
         if 'Date' in df.columns:
             df['_sort_date'] = pd.to_datetime(df['Date'], errors='coerce')
             df = df.sort_values(by='_sort_date', ascending=False)
@@ -1069,12 +1275,6 @@ def get_history():
 
         records = df.to_dict('records')
         del df
-
-        # Load the user profile once. Passing it into get_interpretation() lets
-        # every row reuse the profile's precomputed ceiling/coherence thresholds
-        # instead of re-reading and re-percentiling the history CSV per record
-        # (previously ~2 CSV parses per row on every page load).
-        profile = get_or_create_user_profile('default')
 
         for r in records:
             try:
