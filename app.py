@@ -39,8 +39,8 @@ os.makedirs(app.config['DATA_FOLDER'], exist_ok=True)
 # THE STANDARD COLUMNS WE EXPECT
 HISTORY_COLUMNS = [
     'Date',
-    'Baseline_Alpha', 'Entrained_Alpha', 'Coherence_Index',
-    'Baseline_RMSSD', 'Entrained_RMSSD', 'Vagal_Gain',
+    'Baseline_Alpha', 'Entrained_Alpha', 'Responsiveness_Index',
+    'Baseline_RMSSD', 'Entrained_RMSSD', 'Power',
     'Entrained_Resp_Rate',
     'Plot_File',
     'Baseline_HR', 'Baseline_Mean_RR'
@@ -110,8 +110,8 @@ def get_or_create_user_profile(user_id='default'):
             'user_id': user_id,
             'session_count': 0,
             'personalization_phase': 1,
-            'coherence_threshold_computed': COHERENCE_TIEBREAKER_DEFAULT,
-            'coherence_threshold_source': 'phase_1_default',
+            'responsiveness_threshold_computed': RESPONSIVENESS_TIEBREAKER_DEFAULT,
+            'responsiveness_threshold_source': 'phase_1_default',
             'rmssd_ceiling_computed': 40.0,
             'rmssd_ceiling_source': 'phase_1_default',
             'baseline_rmssd_mean': None,
@@ -126,8 +126,8 @@ def get_or_create_user_profile(user_id='default'):
         save_user_profiles()
     return USER_PROFILES[user_id]
 
-def compute_coherence_threshold_from_history(history_file, window_sessions=30, df=None):
-    """Compute 90th percentile of coherence ratio from trailing sessions.
+def compute_responsiveness_threshold_from_history(history_file, window_sessions=30, df=None):
+    """Compute 90th percentile of responsiveness ratio from trailing sessions.
 
     Accepts an optional preloaded DataFrame (df) to avoid re-reading the CSV
     when several threshold computations run back-to-back.
@@ -137,20 +137,20 @@ def compute_coherence_threshold_from_history(history_file, window_sessions=30, d
             df = pd.read_csv(history_file, skipinitialspace=True)
             df.columns = [c.strip() for c in df.columns]
 
-        if 'Coherence_Index' not in df.columns or len(df) == 0:
+        if 'Responsiveness_Index' not in df.columns or len(df) == 0:
             return None
 
-        # Get trailing window of coherence values
-        coherence_vals = pd.to_numeric(df['Coherence_Index'].tail(window_sessions), errors='coerce')
-        coherence_vals = coherence_vals.dropna()
+        # Get trailing window of responsiveness values
+        responsiveness_vals = pd.to_numeric(df['Responsiveness_Index'].tail(window_sessions), errors='coerce')
+        responsiveness_vals = responsiveness_vals.dropna()
 
-        if len(coherence_vals) < 5:
+        if len(responsiveness_vals) < 5:
             return None
 
         # Return 90th percentile
-        return round(np.percentile(coherence_vals, 90), 2)
+        return round(np.percentile(responsiveness_vals, 90), 2)
     except Exception as e:
-        logger.warning(f"Could not compute coherence threshold: {e}")
+        logger.warning(f"Could not compute responsiveness threshold: {e}")
         return None
 
 def compute_rmssd_ceiling_from_history(history_file, window_sessions=30, df=None):
@@ -224,13 +224,13 @@ def update_user_profile(user_id='default'):
         logger.warning(f"Could not load history for profile update: {e}")
 
     # Recompute thresholds from history
-    new_coherence = compute_coherence_threshold_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS, df=hist_df)
+    new_responsiveness = compute_responsiveness_threshold_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS, df=hist_df)
     new_rmssd = compute_rmssd_ceiling_from_history(HISTORY_FILE, CEILING_WINDOW_SESSIONS, df=hist_df)
     baseline_norms = compute_baseline_norms_from_history(HISTORY_FILE, df=hist_df)
 
-    if new_coherence is not None:
-        profile['coherence_threshold_computed'] = new_coherence
-        profile['coherence_threshold_source'] = 'personal_rolling_90th_percentile'
+    if new_responsiveness is not None:
+        profile['responsiveness_threshold_computed'] = new_responsiveness
+        profile['responsiveness_threshold_source'] = 'personal_rolling_90th_percentile'
 
     if new_rmssd is not None:
         profile['rmssd_ceiling_computed'] = new_rmssd
@@ -291,32 +291,32 @@ CEILING_PERCENTILE = 90
 #   No empirical basis. May need adjustment for infrequent users.
 CEILING_WINDOW_SESSIONS = 30
 
-# COHERENCE_TIEBREAKER_DEFAULT = 2.4
+# RESPONSIVENESS_TIEBREAKER_DEFAULT = 2.4
 # Source: placeholder prior. NOT a population threshold.
 #   Cold-start fallback only.
 #   Used as cold-start fallback only. Will be replaced at runtime by
-#   each user's own rolling 90th percentile of coherence ratio once
-#   sufficient history exists (see compute_coherence_tiebreaker_threshold()).
+#   each user's own rolling 90th percentile of responsiveness ratio once
+#   sufficient history exists (see compute_responsiveness_tiebreaker_threshold()).
 #   CRITICAL: Do not treat as universal or apply to other users.
-COHERENCE_TIEBREAKER_DEFAULT = 2.4
+RESPONSIVENESS_TIEBREAKER_DEFAULT = 2.4
 
-# GAIN_THRESHOLD = 1.5
+# POWER_THRESHOLD = 1.5
 # Source: round-number prior. No published basis for this specific
 #   value in resting paced-breathing entrainment context.
 #   Borrowed loosely from HRV fold-change conventions.
 #   HIGH PRIORITY for empirical grounding as multi-user data accumulates.
-GAIN_THRESHOLD = 1.5
+POWER_THRESHOLD = 1.5
 
-# GAIN_MARGIN_PCT = 0.90
+# POWER_MARGIN_PCT = 0.90
 # Source: judgment call. Defines "near-miss" as gain >= threshold * 0.90
 #   (i.e., within 10% of threshold). Prevents tiebreaker from rescuing
 #   sessions with genuinely low amplitude. No empirical basis.
-GAIN_MARGIN_PCT = 0.90
+POWER_MARGIN_PCT = 0.90
 
-# COHERENCE_THRESHOLD = 1.2
+# RESPONSIVENESS_THRESHOLD = 1.2
 # Source: round-number prior. No published basis for resting paced-
-#   breathing context. Same caveat as GAIN_THRESHOLD.
-COHERENCE_THRESHOLD = 1.2
+#   breathing context. Same caveat as POWER_THRESHOLD.
+RESPONSIVENESS_THRESHOLD = 1.2
 
 def compute_rolling_ceiling(history_file, window_sessions=30):
     """
@@ -344,21 +344,21 @@ def compute_rolling_ceiling(history_file, window_sessions=30):
         logger.error(f"Error computing rolling ceiling: {e}")
         return None
 
-def compute_coherence_tiebreaker_threshold(history_file, window_sessions=None):
+def compute_responsiveness_tiebreaker_threshold(history_file, window_sessions=None):
     """
-    Compute 90th percentile of Coherence Ratio from trailing window.
-    Returns computed threshold or COHERENCE_TIEBREAKER_DEFAULT if insufficient data.
+    Compute 90th percentile of Responsiveness Ratio from trailing window.
+    Returns computed threshold or RESPONSIVENESS_TIEBREAKER_DEFAULT if insufficient data.
 
     CRITICAL: This is a per-user adaptive threshold. It will differ for each user.
-    Only the fallback default (COHERENCE_TIEBREAKER_DEFAULT) is universal.
+    Only the fallback default (RESPONSIVENESS_TIEBREAKER_DEFAULT) is universal.
     """
     try:
         if not os.path.exists(history_file):
-            return COHERENCE_TIEBREAKER_DEFAULT
+            return RESPONSIVENESS_TIEBREAKER_DEFAULT
 
         df = pd.read_csv(history_file, skipinitialspace=True)
-        if df.empty or len(df) < 10:  # Need more data for coherence percentile
-            return COHERENCE_TIEBREAKER_DEFAULT
+        if df.empty or len(df) < 10:  # Need more data for responsiveness percentile
+            return RESPONSIVENESS_TIEBREAKER_DEFAULT
 
         # Get last N sessions (use same window as ceiling for consistency)
         if window_sessions is None:
@@ -366,41 +366,41 @@ def compute_coherence_tiebreaker_threshold(history_file, window_sessions=None):
 
         trailing = df.tail(window_sessions)
 
-        # Compute coherence ratio for each session
+        # Compute responsiveness ratio for each session
         b_alpha = pd.to_numeric(trailing['Baseline_Alpha'], errors='coerce').dropna()
         e_alpha = pd.to_numeric(trailing['Entrained_Alpha'], errors='coerce').dropna()
 
         if len(b_alpha) < 5 or len(e_alpha) < 5 or len(b_alpha) != len(e_alpha):
-            return COHERENCE_TIEBREAKER_DEFAULT
+            return RESPONSIVENESS_TIEBREAKER_DEFAULT
 
-        # Compute coherence ratio, handle division
-        coherence_ratios = []
+        # Compute responsiveness ratio, handle division
+        responsiveness_ratios = []
         for i in range(min(len(b_alpha), len(e_alpha))):
             if b_alpha.iloc[i] > 0.001:  # Avoid division by zero
-                coherence_ratios.append(e_alpha.iloc[i] / b_alpha.iloc[i])
+                responsiveness_ratios.append(e_alpha.iloc[i] / b_alpha.iloc[i])
 
-        if len(coherence_ratios) < 5:
-            return COHERENCE_TIEBREAKER_DEFAULT
+        if len(responsiveness_ratios) < 5:
+            return RESPONSIVENESS_TIEBREAKER_DEFAULT
 
-        threshold = np.percentile(coherence_ratios, CEILING_PERCENTILE)
+        threshold = np.percentile(responsiveness_ratios, CEILING_PERCENTILE)
         return threshold
     except Exception as e:
-        logger.error(f"Error computing coherence tiebreaker threshold: {e}")
-        return COHERENCE_TIEBREAKER_DEFAULT
+        logger.error(f"Error computing responsiveness tiebreaker threshold: {e}")
+        return RESPONSIVENESS_TIEBREAKER_DEFAULT
 
 # --- 12-STATE "INTEGRATION & DYNAMICS" LOGIC (v2) ---
-# Classification is based on a 2x2 response matrix (Coherence Ratio x Vagal Gain)
+# Classification is based on a 2x2 response matrix (Responsiveness Ratio x Power)
 # with Tier context (Baseline Alpha) modifying the meaning of each cell.
 # Entrained Alpha is now a reported output only — not a classifier.
 #
 # 2x2 Core:
-#   Gain > 1.5 + Ratio > 1.2  →  Full Response  (Flow / Reserves / Laser)
-#   Gain > 1.5 + Ratio < 1.2  →  Vagal Brake    (energy without organization)
-#   Gain < 1.5 + Ratio > 1.2  →  Fragile Calm   (structure without amplitude)
-#   Gain < 1.5 + Ratio < 1.2  →  No Response    (Burned Out / Stuck / Fumes)
+#   Power > 1.5 + Responsiveness > 1.2  →  Full Response  (Flow / Reserves / Laser)
+#   Power > 1.5 + Responsiveness < 1.2  →  Vagal Brake    (energy without organization)
+#   Power < 1.5 + Responsiveness > 1.2  →  Fragile Calm   (structure without amplitude)
+#   Power < 1.5 + Responsiveness < 1.2  →  No Response    (Burned Out / Stuck / Fumes)
 #
 # Special Override (applied first):
-#   b_rmssd > 30 + Ratio > 1.2 →  Vagal Wave    (ceiling effect)
+#   b_rmssd > 30 + Responsiveness > 1.2 →  Vagal Wave    (ceiling effect)
 
 def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
     """
@@ -409,7 +409,7 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
     PHASE 1: Proof of Concept with three fixes:
     1. Floor + cap on headroom (prevents denominator explosion)
     2. Rolling ceiling (90th percentile of entrained RMSSD, trailing window)
-    3. Coherence tiebreaker (strong coherence rescues near-miss gain)
+    3. Responsiveness tiebreaker (strong responsiveness rescues near-miss power)
 
     PHASE 2: Per-user thresholds from user_profile (optional).
 
@@ -427,8 +427,8 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
     b_alpha = max(b_alpha, 0.001)
     b_rmssd = max(b_rmssd, 0.001)
 
-    coherence_ratio = e_alpha / b_alpha
-    vagal_gain = e_rmssd / b_rmssd  # Fold-change gain (for classifier and tiebreaker)
+    responsiveness_ratio = e_alpha / b_alpha
+    power = e_rmssd / b_rmssd  # Fold-change gain (for classifier and tiebreaker)
 
     # === FIX 2: Compute Rolling Ceiling ===
     # Use user profile's computed ceiling if available, else compute from history
@@ -437,12 +437,12 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
     else:
         ceiling = compute_rolling_ceiling(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
 
-    # === FIX 3 (prep): Compute Coherence Tiebreaker Threshold ===
+    # === FIX 3 (prep): Compute Responsiveness Tiebreaker Threshold ===
     # Use user profile's computed threshold if available, else compute from history
-    if user_profile and user_profile.get('coherence_threshold_computed'):
-        coherence_tiebreaker_threshold = user_profile['coherence_threshold_computed']
+    if user_profile and user_profile.get('responsiveness_threshold_computed'):
+        responsiveness_tiebreaker_threshold = user_profile['responsiveness_threshold_computed']
     else:
-        coherence_tiebreaker_threshold = compute_coherence_tiebreaker_threshold(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
+        responsiveness_tiebreaker_threshold = compute_responsiveness_tiebreaker_threshold(HISTORY_FILE, CEILING_WINDOW_SESSIONS)
 
     # If insufficient history, use all-time 90th as fallback
     if ceiling is None:
@@ -465,50 +465,50 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
 
     # --- SPECIAL OVERRIDE: VAGAL WAVE ---
     # High baseline RMSSD compresses relative gain — ceiling effect, not failure.
-    if b_rmssd > 30 and coherence_ratio >= COHERENCE_THRESHOLD:
+    if b_rmssd > 30 and responsiveness_ratio >= RESPONSIVENESS_THRESHOLD:
         key = "surfing_the_wave"
 
     # --- TIER III: HIGH BASELINE (b_alpha > 1.25) ---
     elif b_alpha > 1.25:
-        if vagal_gain >= GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
+        if power >= POWER_THRESHOLD and responsiveness_ratio >= RESPONSIVENESS_THRESHOLD:
             key = "laser_focus"          # Full response from high base
-        elif vagal_gain >= GAIN_THRESHOLD and coherence_ratio < COHERENCE_THRESHOLD:
+        elif power >= POWER_THRESHOLD and responsiveness_ratio < RESPONSIVENESS_THRESHOLD:
             key = "tug_of_war"           # Vagal Brake — energy without structure
-        elif vagal_gain < GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
+        elif power < POWER_THRESHOLD and responsiveness_ratio >= RESPONSIVENESS_THRESHOLD:
             key = "attentive"            # Structure held, no vagal recruitment
         else:
             key = "stuck"                # No response in either axis
 
     # --- TIER I: LOW BASELINE (b_alpha < 0.75) ---
     elif b_alpha < 0.75:
-        if vagal_gain >= GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
+        if power >= POWER_THRESHOLD and responsiveness_ratio >= RESPONSIVENESS_THRESHOLD:
             key = "relying_on_reserves"  # Full response despite low base
-        elif vagal_gain >= GAIN_THRESHOLD and coherence_ratio < COHERENCE_THRESHOLD:
+        elif power >= POWER_THRESHOLD and responsiveness_ratio < RESPONSIVENESS_THRESHOLD:
             key = "running_low"          # Vagal Brake on depleted system
-        # === FIX 3: Coherence Tiebreaker (rescue near-miss sessions) ===
-        # Coherence in top decile AND fold-change gain is near-miss (within margin of threshold)
-        elif (vagal_gain < GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD and
-              coherence_ratio >= coherence_tiebreaker_threshold and
-              vagal_gain >= (GAIN_THRESHOLD * GAIN_MARGIN_PCT)):
-            key = "relying_on_reserves"  # Rescued by strong coherence + near-miss gain
-        elif vagal_gain < GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
+        # === FIX 3: Responsiveness Tiebreaker (rescue near-miss sessions) ===
+        # Responsiveness in top decile AND fold-change gain is near-miss (within margin of threshold)
+        elif (power < POWER_THRESHOLD and responsiveness_ratio >= RESPONSIVENESS_THRESHOLD and
+              responsiveness_ratio >= responsiveness_tiebreaker_threshold and
+              power >= (POWER_THRESHOLD * POWER_MARGIN_PCT)):
+            key = "relying_on_reserves"  # Rescued by strong responsiveness + near-miss power
+        elif power < POWER_THRESHOLD and responsiveness_ratio >= RESPONSIVENESS_THRESHOLD:
             key = "fragile_calm"         # Structure shifted, amplitude limited
         else:
             key = "running_on_fumes"     # No response — system is depleted
 
     # --- TIER II: AVAILABLE BASELINE (0.75 <= b_alpha <= 1.25) ---
     else:
-        if vagal_gain >= GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
+        if power >= POWER_THRESHOLD and responsiveness_ratio >= RESPONSIVENESS_THRESHOLD:
             key = "feeling_the_flow"     # Full response — optimal state
-        elif vagal_gain >= GAIN_THRESHOLD and coherence_ratio < COHERENCE_THRESHOLD:
+        elif power >= POWER_THRESHOLD and responsiveness_ratio < RESPONSIVENESS_THRESHOLD:
             key = "tug_of_war"           # Vagal Brake — energy without structure
-        # === FIX 3: Coherence Tiebreaker (rescue near-miss sessions) ===
-        # Coherence in top decile AND fold-change gain is near-miss (within margin of threshold)
-        elif (vagal_gain < GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD and
-              coherence_ratio >= coherence_tiebreaker_threshold and
-              vagal_gain >= (GAIN_THRESHOLD * GAIN_MARGIN_PCT)):
-            key = "feeling_the_flow"     # Rescued by strong coherence + near-miss gain
-        elif vagal_gain < GAIN_THRESHOLD and coherence_ratio >= COHERENCE_THRESHOLD:
+        # === FIX 3: Responsiveness Tiebreaker (rescue near-miss sessions) ===
+        # Responsiveness in top decile AND fold-change gain is near-miss (within margin of threshold)
+        elif (power < POWER_THRESHOLD and responsiveness_ratio >= RESPONSIVENESS_THRESHOLD and
+              responsiveness_ratio >= responsiveness_tiebreaker_threshold and
+              power >= (POWER_THRESHOLD * POWER_MARGIN_PCT)):
+            key = "feeling_the_flow"     # Rescued by strong responsiveness + near-miss power
+        elif power < POWER_THRESHOLD and responsiveness_ratio >= RESPONSIVENESS_THRESHOLD:
             key = "fragile_calm"         # Structure shifted, amplitude limited
         else:
             key = "burned_out"           # No response — system perceived stress
@@ -523,8 +523,8 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
     fmt_args = {
         "b_alpha": f"{b_alpha:.2f}",
         "e_alpha": f"{e_alpha:.2f}",
-        "vagal_gain": f"{vagal_gain:.2f}",
-        "coherence_ratio": f"{coherence_ratio:.2f}",
+        "power": f"{power:.2f}",
+        "responsiveness_ratio": f"{responsiveness_ratio:.2f}",
         "b_rmssd": f"{b_rmssd:.1f}",
         "e_rmssd": f"{e_rmssd:.1f}",
         "headroom": f"{headroom:.2f}",
@@ -809,8 +809,8 @@ class AutonomicFlexibilityAnalyzer:
         resp_rate = self.calculate_resp_rate(entr_rr)
         baseline_mean_rr, baseline_hr = self.calculate_baseline_hr(base_rr)
 
-        coherence_index = a_entr / a_base if a_base > 0 else 0
-        vagal_gain = r_entr / r_base if r_base > 0 else 0
+        responsiveness_index = a_entr / a_base if a_base > 0 else 0
+        power = r_entr / r_base if r_base > 0 else 0
 
         interp = get_interpretation(a_base, a_entr, r_base, r_entr)
 
@@ -821,10 +821,10 @@ class AutonomicFlexibilityAnalyzer:
             'date': self.get_session_date(),
             'a_base': round(a_base, 2),
             'a_entr': round(a_entr, 2),
-            'coherence_index': round(coherence_index, 2),
+            'responsiveness_index': round(responsiveness_index, 2),
             'r_base': round(r_base, 1),
             'r_entr': round(r_entr, 1),
-            'vagal_gain': round(vagal_gain, 2),
+            'power': round(power, 2),
             'entrained_resp_rate': resp_rate,
             'interp': interp,
             'baseline_mean_rr': baseline_mean_rr,
@@ -910,9 +910,9 @@ class AutonomicFlexibilityAnalyzer:
         ax[1, 0].set_xticklabels(cats)
 
         ax[1, 0].axhspan(0.75, 1.25, color='gray', alpha=0.1, label='Resting Norm', zorder=0)
-        ax[1, 0].axhspan(1.35, 1.6, color='#007acc', alpha=0.1, label='Coherence Target', zorder=0)
+        ax[1, 0].axhspan(1.35, 1.6, color='#007acc', alpha=0.1, label='Responsiveness Target', zorder=0)
         ax[1, 0].set_ylim(0, 2.0)
-        ax[1, 0].set_title("Coherence (Alpha-1)", fontsize=14, fontweight='bold', pad=15)
+        ax[1, 0].set_title("Responsiveness (Alpha-1)", fontsize=14, fontweight='bold', pad=15)
         ax[1, 0].set_ylabel("DFA Alpha-1")
         ax[1, 0].grid(True, axis='y', linestyle='--', alpha=0.5)
         ax[1, 0].legend(loc='upper left', fontsize='small')
@@ -937,7 +937,7 @@ class AutonomicFlexibilityAnalyzer:
 
         max_r = max(vals_rmssd) if vals_rmssd else 50
         ax[1, 1].set_ylim(0, max_r * 1.3)
-        ax[1, 1].set_title("Vagal Gain (RMSSD)", fontsize=14, fontweight='bold', pad=15)
+        ax[1, 1].set_title("Power (RMSSD)", fontsize=14, fontweight='bold', pad=15)
         ax[1, 1].set_ylabel("RMSSD (ms)")
         ax[1, 1].grid(True, axis='y', linestyle='--', alpha=0.5)
         ax[1, 1].legend(loc='upper left', fontsize='small')
@@ -1008,10 +1008,10 @@ def save_to_history(m, plot_file):
             date_str,
             m['a_base'],
             m['a_entr'],
-            m['coherence_index'],
+            m['responsiveness_index'],
             m['r_base'],
             m['r_entr'],
-            m['vagal_gain'],
+            m['power'],
             m.get('entrained_resp_rate', 0),
             plot_file,
             m.get('baseline_hr', ''),
@@ -1051,7 +1051,7 @@ def get_history():
         rename_map = {
             'Normal_Alpha': 'Baseline_Alpha',
             'Normal_RMSSD': 'Baseline_RMSSD',
-            'ratio': 'Coherence_Index'
+            'ratio': 'Responsiveness_Index'
         }
         df.rename(columns=rename_map, inplace=True)
 
@@ -1071,7 +1071,7 @@ def get_history():
         del df
 
         # Load the user profile once. Passing it into get_interpretation() lets
-        # every row reuse the profile's precomputed ceiling/coherence thresholds
+        # every row reuse the profile's precomputed ceiling/responsiveness thresholds
         # instead of re-reading and re-percentiling the history CSV per record
         # (previously ~2 CSV parses per row on every page load).
         profile = get_or_create_user_profile('default')
@@ -1181,7 +1181,7 @@ def process_files(f1, f2):
         metrics = analyzer.run()
 
         # Validate that we actually got numbers back
-        if not metrics or 'coherence_index' not in metrics:
+        if not metrics or 'responsiveness_index' not in metrics:
             raise ValueError("Analysis failed to generate valid metrics.")
 
         # 4. Rename and preserve uploaded files for future reference
@@ -1317,10 +1317,10 @@ def view_session():
         'date': target['Date'],
         'a_base': to_num(target.get('Baseline_Alpha', 0)),
         'a_entr': to_num(target.get('Entrained_Alpha', 0)),
-        'coherence_index': to_num(target.get('Coherence_Index', 0)),
+        'responsiveness_index': to_num(target.get('Responsiveness_Index', 0)),
         'r_base': to_num(target.get('Baseline_RMSSD', 0)),
         'r_entr': to_num(target.get('Entrained_RMSSD', 0)),
-        'vagal_gain': to_num(target.get('Vagal_Gain', 0)),
+        'power': to_num(target.get('Power', 0)),
         'entrained_resp_rate': target.get('Entrained_Resp_Rate', '-')
     }
     

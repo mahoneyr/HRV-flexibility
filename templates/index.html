@@ -140,8 +140,8 @@
                                 <td onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_Alpha }}</td>
                                 <td class="border-end" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_RMSSD }}</td>
                                 <td class="fw-bold" style="color: #555;" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_Resp_Rate }}</td>
-                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Coherence_Index }}</td>
-                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Vagal_Gain }}</td>
+                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Responsiveness_Index }}</td>
+                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Power }}</td>
                                 
                                 <!-- Delete Button (Separate cell, no row click) -->
                                 <td class="text-center delete-cell">

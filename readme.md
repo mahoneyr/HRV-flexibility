@@ -5,7 +5,7 @@
 ![License](https://img.shields.io/badge/license-GPL%20v3-blue.svg)
 ![Docker](https://img.shields.io/badge/docker-ready-brightgreen.svg)
 
-> Quantify your autonomic nervous system's ability to shift from chaos to coherence using HRV analysis
+> Quantify your autonomic nervous system's ability to shift from chaos to responsiveness using HRV analysis
 
 The **Autonomic Flexibility Analyzer** is a Flask-based web application designed to evaluate the functional state of the Autonomic Nervous System (ANS). Unlike standard HRV trackers that offer static snapshots, this tool utilizes a **Multi-State Logic Model** to compare resting baseline data against entrained (resonant breathing) data.
 
@@ -29,7 +29,7 @@ Standard HRV apps show you a single number (RMSSD or SDNN) from one state. But a
 
 This analyzer:
 - ✅ Compares resting vs. entrained states
-- ✅ Quantifies shift capacity (coherence & vagal gain)
+- ✅ Quantifies shift capacity (responsiveness & power)
 - ✅ Classifies into 12 physiological patterns
 - ✅ Tracks your progress over time with personal benchmarks
 
@@ -65,12 +65,12 @@ Detrended Fluctuation Analysis (DFA Alpha-1) measures the fractal scaling proper
 * **Autonomic Integration:** During resonant breathing, the system should shift toward a higher-order, "correlated" state, indicating successful neural integration and synchronization between the heart and the breath.
 * **States of Rigidity:** Values significantly above 1.25 at rest may indicate "Systemic Rigidity," where the system is locked into a high-focus or high-stress attractor state.
 
-### **2. Dynamics (Vagal Volume) via RMSSD & Vagal Gain**
+### **2. Dynamics (Vagal Volume) via RMSSD & Power**
 
 While Alpha-1 measures *order*, RMSSD (Root Mean Square of Successive Differences) measures *power*.
 
 * **Vagal Outflow:** RMSSD is the primary time-domain index of parasympathetic activity mediated by the vagus nerve.
-* **Vagal Gain:** This application calculates the ratio of **Entrained RMSSD / Baseline RMSSD**. A target gain of **> 1.5x** indicates a robust "Baroreflex" response, where the physical mechanics of breathing successfully recruit parasympathetic resources.
+* **Power:** This application calculates the ratio of **Entrained RMSSD / Baseline RMSSD**. A target gain of **> 1.5x** indicates a robust "Baroreflex" response, where the physical mechanics of breathing successfully recruit parasympathetic resources.
 
 ---
 
@@ -109,26 +109,26 @@ Your session gets classified into one of these states based on **how your system
 
 | State | Trigger Conditions | What It Means | Next Step |
 |-------|-------------------|---------------|-----------|
-| **🎯 Laser Focus** | Vagal Gain > 1.5x | Peak performance state. High focus + massive vagal response. | Capitalize on this window for high-demand tasks. |
+| **🎯 Laser Focus** | Power > 1.5x | Peak performance state. High focus + massive vagal response. | Capitalize on this window for high-demand tasks. |
 | **⚡ Attentive** | Entrained α1 > 1.35 | Alert and organized, but holding tension. May feel "wired." | Soften physical tension—drop shoulders, relax jaw. |
-| **🔒 Stuck** | Poor Coherence Response | Rigid system resisting the breath. Trying too hard. | Break the pattern with movement before trying again. |
+| **🔒 Stuck** | Poor Responsiveness Response | Rigid system resisting the breath. Trying too hard. | Break the pattern with movement before trying again. |
 
 #### **🟡 Tier II States: Available Baseline (0.75 ≤ α1 ≤ 1.25)**
 
 | State | Trigger Conditions | What It Means | Next Step |
 |-------|-------------------|---------------|-----------|
-| **✨ Feeling the Flow** | Coherence > 1.2 + Vagal Gain > 1.5x + α1 > 1.35 | **OPTIMAL STATE.** Deep recovery and high function. | Maintain exactly what you're doing. |
-| **🌿 Fragile Calm** | Coherence > 1.2 + Low Vagal Gain + α1 > 1.35 | Calm timing but shallow breathing. | Try slightly fuller inhalations to recruit more vagal tone. |
-| **🟢 Open for Business** | Coherence > 1.2 + α1 > 1.35 (other) | Steady and balanced. Not pushing limits. | Extend exhalation if you want deeper recovery. |
-| **⚔️ Tug of War** | Vagal Gain > 1.5x + α1 < 1.35 | Body generating energy but pattern is messy. | Allow the turbulence—relax abdomen, don't force. |
-| **🔥 Burned Out** | α1 < 1.35 + Low Vagal Gain | System deteriorated during session—perceived as stress. | Stop. You need rest, not more training. |
+| **✨ Feeling the Flow** | Responsiveness > 1.2 + Power > 1.5x + α1 > 1.35 | **OPTIMAL STATE.** Deep recovery and high function. | Maintain exactly what you're doing. |
+| **🌿 Fragile Calm** | Responsiveness > 1.2 + Low Power + α1 > 1.35 | Calm timing but shallow breathing. | Try slightly fuller inhalations to recruit more vagal tone. |
+| **🟢 Open for Business** | Responsiveness > 1.2 + α1 > 1.35 (other) | Steady and balanced. Not pushing limits. | Extend exhalation if you want deeper recovery. |
+| **⚔️ Tug of War** | Power > 1.5x + α1 < 1.35 | Body generating energy but pattern is messy. | Allow the turbulence—relax abdomen, don't force. |
+| **🔥 Burned Out** | α1 < 1.35 + Low Power | System deteriorated during session—perceived as stress. | Stop. You need rest, not more training. |
 
 #### **🔴 Tier I States: Low Baseline Structure (α1 < 0.75)**
 
 | State | Trigger Conditions | What It Means | Next Step |
 |-------|-------------------|---------------|-----------|
-| **🏃 Relying on Reserves** | Coherence Ratio ≥ 1.2 | Starting depleted but forcing alignment through effort. | Acute recovery: prioritize rest after this session. |
-| **⚠️ Running Low** | Vagal Gain > 1.5x + α1 < 1.35 | Body is working, mind is tired. Hard to find rhythm. | Reduce session length or slow breathing rate. |
+| **🏃 Relying on Reserves** | Responsiveness Ratio ≥ 1.2 | Starting depleted but forcing alignment through effort. | Acute recovery: prioritize rest after this session. |
+| **⚠️ Running Low** | Power > 1.5x + α1 < 1.35 | Body is working, mind is tired. Hard to find rhythm. | Reduce session length or slow breathing rate. |
 | **❌ Running on Fumes** | Poor response across all metrics | Internal battery critically low. System can't rebound. | Stop training. Focus on sleep, hydration, nutrition. |
 
 ---
@@ -146,10 +146,10 @@ Your session gets classified into one of these states based on **how your system
 
 The classification uses **three key metrics**:
 
-1. **Coherence Index** = Entrained α1 / Baseline α1  
+1. **Responsiveness Index** = Entrained α1 / Baseline α1  
    → Target: **> 1.2** (20% improvement in structure)
 
-2. **Vagal Gain** = Entrained RMSSD / Baseline RMSSD  
+2. **Power** = Entrained RMSSD / Baseline RMSSD  
    → Target: **> 1.5x** (50% increase in vagal power)
 
 3. **Entrained α1**  
@@ -164,7 +164,7 @@ The classification uses **three key metrics**:
 | To Achieve | You Need |
 |-----------|----------|
 | **Optimal Recovery** (Feeling the Flow) | Balanced baseline (0.75-1.25) + hit all 3 targets |
-| **High Performance** (Laser Focus) | High baseline (>1.25) + high vagal gain |
+| **High Performance** (Laser Focus) | High baseline (>1.25) + high power |
 | **Avoid Training** (Running on Fumes, Burned Out) | When starting depleted and getting poor response |
 
 ---
@@ -217,7 +217,7 @@ Keep the files separate—don't mix resting and deep breathing data.
 After clicking **Analyze**, you will be redirected to the Analysis Report:
 
 * **The Interpretation Card:** Provides a summary of your physiological state and suggested "Next Steps."
-* **Primary Scores:** Check your **Coherence Index** (Target > 1.2) and **Vagal Gain** (Target > 1.5x).
+* **Primary Scores:** Check your **Responsiveness Index** (Target > 1.2) and **Power** (Target > 1.5x).
 * **Detailed Graphs:** Bar charts show your current performance against **Black Error Bars** (Historical Mean ± 1 SD).
 
 ---
