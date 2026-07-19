@@ -166,20 +166,20 @@
 
     <!-- MAIN SCORES -->
     <div class="row justify-content-center mb-4">
-        <!-- SCORE 1: COHERENCE INDEX (Alpha) -->
+        <!-- SCORE 1: RESPONSIVENESS INDEX (Alpha) -->
         <div class="col-12 col-md-5 col-lg-4 mb-3 mb-md-0">
             <div class="score-box">
-                <div class="label">Coherence Index</div>
-                <div class="val">{{ m.coherence_index }}</div>
+                <div class="label">Responsiveness Index</div>
+                <div class="val">{{ m.responsiveness_index }}</div>
                 <div class="sub-val">Target: > 1.2</div>
             </div>
         </div>
 
-        <!-- SCORE 2: VAGAL GAIN (RMSSD) -->
+        <!-- SCORE 2: POWER (RMSSD) -->
         <div class="col-12 col-md-5 col-lg-4">
             <div class="score-box-sec" style="background-color: #495057;">
-                <div class="label">Vagal Gain</div>
-                <div class="val">{{ m.vagal_gain }}x</div>
+                <div class="label">Power</div>
+                <div class="val">{{ m.power }}x</div>
                 <div class="sub-val">Target: > 1.5</div>
             </div>
         </div>
@@ -269,8 +269,8 @@
                                 <td onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_Alpha }}</td>
                                 <td class="border-end" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_RMSSD }}</td>
                                 <td class="fw-bold" style="color: #555;" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Entrained_Resp_Rate }}</td>
-                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Coherence_Index }}</td>
-                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Vagal_Gain }}</td>
+                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Responsiveness_Index }}</td>
+                                <td class="fw-bold" onclick='openSession({{ url_for("view_session", date=row.Date) | tojson }})'>{{ row.Power }}</td>
                                 
                                 <!-- Delete Button -->
                                 <td class="text-center delete-cell">
