@@ -13,8 +13,8 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import app as hrv
 
-# Synthetic profile so get_interpretation() never falls back to
-# reading the history CSV. Thresholds chosen to make case boundaries obvious:
+# Synthetic profile so get_interpretation() never falls back to reading the
+# history CSV. Values are illustrative, chosen to make case boundaries obvious:
 # ceiling 40.0, tiebreaker 2.4, floor mean/sd 20.0/5.0 (z=-2 at b_rmssd=10.0).
 PROFILE = {
     'rmssd_ceiling_computed': 40.0,
@@ -49,8 +49,8 @@ def classify(b_alpha, e_alpha, b_rmssd, e_rmssd):
 # POWER_MARGIN_PCT=0.90 (near-miss floor 1.35), tier bounds 0.75/1.25.
 CLASSIFIER_CASES = [
     # Overrides (checked before the tier matrix)
-    ((1.0, 1.3, 5.0, 20.0), 'running_on_fumes'),    # depleted floor: z = -2.11
-    ((1.0, 1.3, 37.0, 45.0), 'surfing_the_wave'),   # baseline >= personal ceiling
+    ((1.0, 1.3, 9.0, 20.0), 'running_on_fumes'),    # depleted floor: z = -2.2
+    ((1.0, 1.3, 41.0, 48.0), 'surfing_the_wave'),   # baseline >= personal ceiling (40)
     # Tier III: high baseline (b_alpha > 1.25)
     ((1.3, 1.60, 20.0, 32.0), 'laser_focus'),       # resp 1.23, power 1.6
     ((1.3, 1.40, 20.0, 32.0), 'tug_of_war'),        # resp 1.08 below threshold
@@ -83,10 +83,10 @@ def test_classifier_survives_zero_inputs():
 
 def test_depleted_floor_disarmed_without_norms():
     # Same severe baseline as the depleted-floor case, but a cold-start profile
-    # (no mean/sd) must not fire the override. With power 3.57 and resp 1.3 the
+    # (no mean/sd) must not fire the override. With power 2.22 and resp 1.3 the
     # tier-II matrix classifies it as a full response instead.
     profile = dict(PROFILE, baseline_rmssd_mean=None, baseline_rmssd_sd=None)
-    state = hrv.get_interpretation(1.0, 1.3, 5.6, 20.0, user_profile=profile)['state']
+    state = hrv.get_interpretation(1.0, 1.3, 9.0, 20.0, user_profile=profile)['state']
     assert state == 'feeling_the_flow'
 
 

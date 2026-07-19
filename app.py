@@ -124,7 +124,7 @@ def get_or_create_user_profile(user_id='default'):
             'personalization_phase': 1,
             'responsiveness_threshold_computed': RESPONSIVENESS_TIEBREAKER_DEFAULT,
             'responsiveness_threshold_source': 'phase_1_default',
-            'rmssd_ceiling_computed': 40.0,
+            'rmssd_ceiling_computed': RMSSD_CEILING_DEFAULT,
             'rmssd_ceiling_source': 'phase_1_default',
             'baseline_rmssd_mean': None,
             'baseline_rmssd_sd': None,
@@ -307,6 +307,12 @@ HEADROOM_CAP = 2.0
 #   No published population basis for this specific percentile.
 CEILING_PERCENTILE = 90
 
+# RMSSD_CEILING_DEFAULT = 40.0
+# Source: placeholder prior, used only as a cold-start fallback before a user
+#   has enough history to compute their own rolling ceiling. NOT a population
+#   value — see compute_rmssd_ceiling_from_history() for the real per-user path.
+RMSSD_CEILING_DEFAULT = 40.0
+
 # FLOOR_Z_THRESHOLD = -2.0
 # Source: statistical convention. The depleted-floor override fires when a
 #   session's BASELINE RMSSD sits this many standard deviations (or more)
@@ -331,11 +337,10 @@ FLOOR_Z_THRESHOLD = -2.0
 CEILING_WINDOW_SESSIONS = 30
 
 # RESPONSIVENESS_TIEBREAKER_DEFAULT = 2.4
-# Source: placeholder prior. NOT a population threshold.
-#   Cold-start fallback only.
-#   Used as cold-start fallback only. Will be replaced at runtime by
-#   each user's own rolling 90th percentile of responsiveness ratio once
-#   sufficient history exists (see compute_responsiveness_tiebreaker_threshold()).
+# Source: placeholder prior. NOT a population threshold. Used as a cold-start
+#   fallback only, and replaced at runtime by each user's own rolling 90th
+#   percentile of responsiveness ratio once sufficient history exists
+#   (see compute_responsiveness_tiebreaker_threshold()).
 #   CRITICAL: Do not treat as universal or apply to other users.
 RESPONSIVENESS_TIEBREAKER_DEFAULT = 2.4
 
@@ -537,11 +542,11 @@ def get_interpretation(b_alpha, e_alpha, b_rmssd, e_rmssd, user_profile=None):
             df = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
             if not df.empty:
                 all_entrained = pd.to_numeric(df['Entrained_RMSSD'], errors='coerce').dropna()
-                ceiling = np.percentile(all_entrained, CEILING_PERCENTILE) if len(all_entrained) > 0 else 40.0
+                ceiling = np.percentile(all_entrained, CEILING_PERCENTILE) if len(all_entrained) > 0 else RMSSD_CEILING_DEFAULT
             else:
-                ceiling = 40.0  # placeholder cold-start default
+                ceiling = RMSSD_CEILING_DEFAULT
         except Exception:
-            ceiling = 40.0  # placeholder cold-start default
+            ceiling = RMSSD_CEILING_DEFAULT
 
     # === FIX 1: Compute Headroom with Floor + Cap (for diagnostics, prevents denominator explosion) ===
     denom = max(ceiling - b_rmssd, HEADROOM_FLOOR_MS)
