@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 import os
+import shutil
 import uuid
 import csv
 import logging
@@ -1183,8 +1184,12 @@ def ensure_history_header():
                 changed = True
         
         if changed:
+            # Schema rewrites are rare and destructive if buggy (a bad migration
+            # once wiped two columns) — keep a timestamped copy of the original.
+            backup = f"{HISTORY_FILE}.schema-backup-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            shutil.copy2(HISTORY_FILE, backup)
             df[HISTORY_COLUMNS].to_csv(HISTORY_FILE, index=False)
-            logger.info("Updated history file schema with new columns.")
+            logger.info(f"Updated history file schema with new columns (backup: {backup}).")
             
     except Exception as e:
         logger.error(f"Error repairing history header: {e}")
@@ -1564,6 +1569,12 @@ def delete():
     if date_str:
         delete_from_history(date_str)
     return redirect(url_for('index'))
+
+@app.route('/health')
+def health():
+    """Liveness check for the container health probe. Deliberately does not
+    touch history or templates so a data bug can't mark the app unhealthy."""
+    return "ok"
 
 @app.route('/debug')
 def debug():
