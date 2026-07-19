@@ -12,7 +12,12 @@ env/
 uploads/
 static/
 data/history.csv
+data/history.csv.*
 data/user_profiles.json
+
+# Ad-hoc backups and editor temp copies
+*.bak
+app.py.tmp.*
 
 # Editor / OS
 *.swp
