@@ -46,6 +46,17 @@ HISTORY_COLUMNS = [
     'Baseline_HR', 'Baseline_Mean_RR'
 ]
 
+# Legacy column names mapped to their current equivalents. Schema migration
+# must RENAME these (never add-empty-and-drop), or historical values are lost
+# when a metric is renamed.
+LEGACY_COLUMN_RENAMES = {
+    'Normal_Alpha': 'Baseline_Alpha',
+    'Normal_RMSSD': 'Baseline_RMSSD',
+    'ratio': 'Responsiveness_Index',
+    'Coherence_Index': 'Responsiveness_Index',
+    'Vagal_Gain': 'Power',
+}
+
 # In-memory cache for history to avoid re-reading CSV on every request
 _history_cache = {'data': None, 'mtime': None}
 
@@ -1158,8 +1169,14 @@ def ensure_history_header():
     try:
         df = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
         df.columns = [c.strip() for c in df.columns]
-        
+
         changed = False
+        renames = {old: new for old, new in LEGACY_COLUMN_RENAMES.items()
+                   if old in df.columns and new not in df.columns}
+        if renames:
+            df.rename(columns=renames, inplace=True)
+            changed = True
+
         for col in HISTORY_COLUMNS:
             if col not in df.columns:
                 df[col] = None # Add missing column
@@ -1236,12 +1253,7 @@ def get_history():
         df = pd.read_csv(HISTORY_FILE, skipinitialspace=True)
         df.columns = [c.strip() for c in df.columns]
 
-        rename_map = {
-            'Normal_Alpha': 'Baseline_Alpha',
-            'Normal_RMSSD': 'Baseline_RMSSD',
-            'ratio': 'Responsiveness_Index'
-        }
-        df.rename(columns=rename_map, inplace=True)
+        df.rename(columns=LEGACY_COLUMN_RENAMES, inplace=True)
 
         if df.empty:
             del df
