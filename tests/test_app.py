@@ -92,6 +92,8 @@ def test_depleted_floor_disarmed_without_norms():
 
 # --- Schema migration -------------------------------------------------------
 
+# Synthetic rows in the pre-rename schema. Values are made up; only the
+# column names matter to these tests.
 LEGACY_ROWS = {
     'Date': ['2020-01-01 08:00:00', '2020-01-02 08:00:00'],
     'Baseline_Alpha': [1.00, 1.10],
